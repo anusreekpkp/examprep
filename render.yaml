@@ -51,6 +51,10 @@ services:
     envVars:
       - key: NODE_VERSION
         value: "22"
+      # Careful: despite the name, `property: host` returns only the SERVICE
+      # NAME ("examprep-api-t3p8"), not a hostname. client/src/lib/api.ts
+      # appends .onrender.com to a dotless value to compensate. If you move the
+      # API to a custom domain, replace this with an explicit full URL.
       - key: VITE_API_BASE_URL
         fromService:
           type: web

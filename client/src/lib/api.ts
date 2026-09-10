@@ -7,10 +7,38 @@ import axios, { AxiosError, type InternalAxiosRequestConfig } from 'axios';
  */
 const rawBaseURL = import.meta.env.VITE_API_BASE_URL ?? '';
 
-// Render's `fromService.property: host` yields a bare hostname with no scheme,
-// which axios would treat as a relative path. Normalise it to an absolute URL.
-const baseURL =
-  rawBaseURL && !/^https?:\/\//i.test(rawBaseURL) ? `https://${rawBaseURL}` : rawBaseURL;
+/**
+ * Render's `fromService.property: host` does not return a hostname despite the
+ * name - it returns just the service name, e.g. "examprep-api-t3p8". Prefixing
+ * a scheme onto that yields https://examprep-api-t3p8, which fails DNS and
+ * surfaces as a response-less network error that looks exactly like the API
+ * being down. So a value with no dot is treated as a Render service name.
+ */
+function normaliseBaseURL(value: string): string {
+  const trimmed = value.trim().replace(/\/+$/, '');
+  if (!trimmed) return '';
+
+  const withScheme = /^https?:\/\//i.test(trimmed) ? trimmed : `https://${trimmed}`;
+
+  try {
+    const url = new URL(withScheme);
+    // "localhost" and IP literals are legitimately dotless or numeric.
+    const isBareServiceName =
+      !url.hostname.includes('.') && url.hostname !== 'localhost' && !/^\d/.test(url.hostname);
+    if (isBareServiceName) {
+      url.hostname = `${url.hostname}.onrender.com`;
+    }
+    return url.origin;
+  } catch {
+    return withScheme;
+  }
+}
+
+const baseURL = normaliseBaseURL(rawBaseURL);
+
+if (import.meta.env.DEV && rawBaseURL) {
+  console.info(`[api] VITE_API_BASE_URL="${rawBaseURL}" resolved to "${baseURL}"`);
+}
 
 export const api = axios.create({
   baseURL,

@@ -187,6 +187,19 @@ start command, so schema changes ship with the code that needs them.
 > first request afterwards took **52.9 seconds** when measured. Warm the API up
 > before a live demo or viva by opening its `/api/health` URL.
 
+### `VITE_API_BASE_URL` and Render's `property: host`
+
+Render's blueprint spec offers `fromService.property: host`, and despite the
+name it resolves to just the **service name** - `examprep-api-t3p8` - not a
+hostname. Prefixing a scheme gives `https://examprep-api-t3p8`, which fails DNS
+and reaches the app as a response-less network error: indistinguishable from the
+API being down, while the API is in fact perfectly healthy.
+
+`normaliseBaseURL` in `client/src/lib/api.ts` therefore appends `.onrender.com`
+to any dotless hostname, and logs the resolution in development. If you ever put
+the API behind a custom domain, drop the `fromService` block and set
+`VITE_API_BASE_URL` to the full URL instead.
+
 ### Cold starts and CORS
 
 This one is worth understanding, because the symptom lies. While a free instance
