@@ -6,6 +6,7 @@ import { z } from 'zod';
 import { useAuthStore } from '@/stores/authStore';
 import { extractErrorMessage } from '@/lib/api';
 import { Alert, Button, Card, Field, Input } from '@/components/ui';
+import { WakingBanner } from '@/components/WakingBanner';
 
 const schema = z.object({
   email: z.string().email('Enter a valid email address'),
@@ -51,6 +52,7 @@ export default function LoginPage() {
 
       <Card>
         <form onSubmit={onSubmit} className="space-y-4" noValidate>
+          <WakingBanner />
           {formError && <Alert>{formError}</Alert>}
 
           <Field label="Email" htmlFor="email" error={errors.email?.message}>

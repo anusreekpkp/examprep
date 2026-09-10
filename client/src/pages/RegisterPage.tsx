@@ -6,6 +6,7 @@ import { z } from 'zod';
 import { useAuthStore } from '@/stores/authStore';
 import { extractErrorMessage } from '@/lib/api';
 import { Alert, Button, Card, Field, Input } from '@/components/ui';
+import { WakingBanner } from '@/components/WakingBanner';
 
 // Mirrors server/src/modules/auth/auth.schema.ts so the student sees the same
 // rules before a round trip. The server remains the authority.
@@ -56,6 +57,7 @@ export default function RegisterPage() {
 
       <Card>
         <form onSubmit={onSubmit} className="space-y-4" noValidate>
+          <WakingBanner />
           {formError && <Alert>{formError}</Alert>}
 
           <Field label="Name" htmlFor="name" error={errors.name?.message}>

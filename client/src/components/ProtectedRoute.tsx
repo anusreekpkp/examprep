@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react';
 import { Navigate, useLocation } from 'react-router-dom';
 import { useAuthStore } from '@/stores/authStore';
+import { WakingBanner } from '@/components/WakingBanner';
 
 /**
  * Waits for the boot-time silent refresh before deciding. Without that wait a
@@ -14,9 +15,12 @@ export function ProtectedRoute({ children }: { children: ReactNode }) {
 
   if (isBootstrapping) {
     return (
-      <div className="flex min-h-screen items-center justify-center">
+      <div className="mx-auto flex min-h-screen max-w-md flex-col items-center justify-center px-6">
         <span className="size-6 animate-spin rounded-full border-2 border-slate-300 border-t-brand-600" />
         <span className="sr-only">Restoring your session</span>
+        <div className="mt-6 w-full">
+          <WakingBanner />
+        </div>
       </div>
     );
   }

@@ -15,6 +15,8 @@ const baseURL =
 export const api = axios.create({
   baseURL,
   withCredentials: true,
+  // Generous, because a cold Render free instance can take ~50s to answer.
+  timeout: 90_000,
   headers: { 'Content-Type': 'application/json' },
 });
 
@@ -76,13 +78,66 @@ export function refreshAccessToken(): Promise<string> {
   return refreshPromise;
 }
 
-type RetriableConfig = InternalAxiosRequestConfig & { _retried?: boolean };
+// ----------------------------------------------------------- cold start ----
+
+/**
+ * Render's free tier stops the API after ~15 minutes idle. While it wakes,
+ * Render answers with its own holding response, which carries no CORS headers -
+ * so the browser blocks it and axios reports a bare network error rather than a
+ * status code. Retrying a few times covers the wake-up window instead of
+ * showing the student a false "server is down".
+ */
+const NETWORK_RETRY_DELAYS_MS = [2000, 5000, 10_000, 15_000];
+
+let wakingHandler: ((waking: boolean) => void) | null = null;
+
+export function setServerWakingHandler(handler: ((waking: boolean) => void) | null) {
+  wakingHandler = handler;
+}
+
+function isColdStartError(error: AxiosError): boolean {
+  // No response at all: DNS, connection, timeout, or a CORS-blocked reply.
+  if (error.response) return false;
+  return error.code === 'ERR_NETWORK' || error.code === 'ECONNABORTED';
+}
+
+const wait = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+
+type RetriableConfig = InternalAxiosRequestConfig & {
+  _retried?: boolean;
+  _netAttempt?: number;
+};
 
 api.interceptors.response.use(
-  (response) => response,
+  (response) => {
+    // Anything that answers means the instance is up.
+    wakingHandler?.(false);
+    return response;
+  },
   async (error: AxiosError) => {
     const config = error.config as RetriableConfig | undefined;
     const status = error.response?.status;
+
+    if (config && isColdStartError(error)) {
+      const attempt = config._netAttempt ?? 0;
+      const delay = NETWORK_RETRY_DELAYS_MS[attempt];
+
+      // Out of retries: the API really is unreachable.
+      if (delay === undefined) {
+        wakingHandler?.(false);
+        return Promise.reject(error);
+      }
+
+      config._netAttempt = attempt + 1;
+      wakingHandler?.(true);
+      await wait(delay);
+      // Recursing through api.request re-enters this interceptor, so the
+      // terminal attempt is what clears the flag and surfaces the failure.
+      return api.request(config);
+    }
+
+    // A real HTTP status arrived, so the instance is awake even if it said no.
+    wakingHandler?.(false);
 
     const isRefreshCall = config?.url?.includes('/api/auth/refresh');
     if (status !== 401 || !config || config._retried || isRefreshCall) {
@@ -137,7 +192,9 @@ export function extractErrorMessage(error: unknown, fallback = 'Something went w
       return payload.details.map((d) => d.message).join('. ');
     }
     if (payload?.message) return payload.message;
-    if (error.code === 'ERR_NETWORK') return 'Cannot reach the server. Is the API running?';
+    if (error.code === 'ERR_NETWORK' || error.code === 'ECONNABORTED') {
+      return 'Could not reach the server after several attempts. It may still be starting up - wait a moment and try again.';
+    }
   }
   return fallback;
 }

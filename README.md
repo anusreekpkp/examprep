@@ -183,8 +183,23 @@ the refresh cookie is issued with `SameSite=None; Secure`.
 Migrations run automatically on every deploy via `prisma migrate deploy` in the
 start command, so schema changes ship with the code that needs them.
 
-> The Render free tier spins the API down after 15 minutes of inactivity. The first
-> request afterwards takes ~30 seconds. Worth mentioning before a live demo.
+> The Render free tier spins the API down after ~15 minutes of inactivity. The
+> first request afterwards took **52.9 seconds** when measured. Warm the API up
+> before a live demo or viva by opening its `/api/health` URL.
+
+### Cold starts and CORS
+
+This one is worth understanding, because the symptom lies. While a free instance
+wakes, Render answers with its own holding response, which carries **no CORS
+headers**. The browser blocks it, and the browser then reports a CORS failure to
+JavaScript as an indistinguishable network error - no status code at all. So a
+sleeping API looks exactly like a dead API, and `/api/health` opened directly in
+a tab still works fine, because a top-level navigation is not subject to CORS.
+
+The client handles it rather than blaming the server: `client/src/lib/api.ts`
+retries response-less failures on a 2s / 5s / 10s / 15s ladder, and
+`WakingBanner` explains the wait. Only after all retries fail does it report a
+real error.
 
 ### Why the build command carries `--include=dev`
 
