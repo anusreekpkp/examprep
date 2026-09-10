@@ -1,0 +1,47 @@
+# dependencies
+node_modules/
+.pnp
+.pnp.js
+
+# builds
+dist/
+build/
+*.tsbuildinfo
+
+# env
+.env
+.env.local
+.env.*.local
+!.env.example
+
+# logs
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# editors / os
+.vscode/*
+!.vscode/extensions.json
+.idea/
+.DS_Store
+Thumbs.db
+
+# testing
+coverage/
+
+# prisma
+prisma/*.db
+prisma/*.db-journal
+
+# uploads (local dev)
+server/uploads/
+
+# misc
+.cache/
+.turbo/
+
+# prisma generated client (recreated by `prisma generate` on every build)
+server/src/generated/

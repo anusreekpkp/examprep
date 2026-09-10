@@ -1,0 +1,13 @@
+# Normalise line endings so Windows checkouts do not produce noisy diffs.
+* text=auto eol=lf
+
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.ico binary
+*.pdf binary
+*.woff binary
+*.woff2 binary
+
+package-lock.json linguist-generated=true merge=binary

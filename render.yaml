@@ -1,0 +1,64 @@
+# Render Blueprint - https://render.com/docs/blueprint-spec
+# Create both services at once: Render Dashboard -> New -> Blueprint -> pick this repo.
+
+services:
+  # ---------------------------------------------------------------- API ----
+  - type: web
+    name: examprep-api
+    runtime: node
+    plan: free
+    region: singapore
+    rootDir: .
+    buildCommand: npm ci && npm run build:server
+    # migrate deploy runs the committed migrations; it never prompts and never drops data.
+    startCommand: npm run db:deploy --workspace=server && npm run start --workspace=server
+    healthCheckPath: /api/health
+    autoDeployTrigger: commit
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: NODE_VERSION
+        value: "22"
+      # Set in the Render dashboard - paste the Neon pooled connection string.
+      - key: DATABASE_URL
+        sync: false
+      - key: JWT_SECRET
+        generateValue: true
+      - key: REFRESH_TOKEN_SECRET
+        generateValue: true
+      - key: JWT_EXPIRES_IN
+        value: 7d
+      - key: REFRESH_TOKEN_EXPIRES_IN
+        value: 30d
+      # Filled in after the static site gets its URL.
+      - key: CORS_ORIGIN
+        sync: false
+      - key: ANTHROPIC_API_KEY
+        sync: false
+
+  # ------------------------------------------------------------- CLIENT ----
+  - type: web
+    name: examprep-web
+    runtime: static
+    plan: free
+    rootDir: .
+    buildCommand: npm ci && npm run build:client
+    staticPublishPath: client/dist
+    autoDeployTrigger: commit
+    envVars:
+      - key: NODE_VERSION
+        value: "22"
+      - key: VITE_API_BASE_URL
+        fromService:
+          type: web
+          name: examprep-api
+          property: host
+    routes:
+      # Client-side routing: every unknown path must return index.html, not a 404.
+      - type: rewrite
+        source: /*
+        destination: /index.html
+    headers:
+      - path: /assets/*
+        name: Cache-Control
+        value: public, max-age=31536000, immutable

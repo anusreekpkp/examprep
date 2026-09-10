@@ -1,0 +1,26 @@
+// Competitive Exam Preparation & Revision Management System
+// Phase 0: minimal User model so `prisma generate` and the build succeed.
+// Phase 1 expands this into the full exam / syllabus / revision domain.
+
+generator client {
+  provider        = "prisma-client"
+  output          = "../src/generated/prisma"
+  moduleFormat    = "esm"
+  runtime         = "nodejs"
+}
+
+// Prisma 7 keeps connection URLs out of the schema; see prisma.config.ts.
+datasource db {
+  provider = "postgresql"
+}
+
+model User {
+  id           String   @id @default(cuid())
+  email        String   @unique
+  passwordHash String
+  name         String
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@map("users")
+}

@@ -1,0 +1,30 @@
+@import 'tailwindcss';
+
+/* Design tokens shared by every screen. Phase 2 builds the real shell on top. */
+@theme {
+  --color-brand-50: oklch(0.97 0.014 275);
+  --color-brand-100: oklch(0.93 0.032 275);
+  --color-brand-500: oklch(0.58 0.19 275);
+  --color-brand-600: oklch(0.51 0.2 275);
+  --color-brand-700: oklch(0.44 0.18 275);
+
+  /* Topic status colours, matching the four-state model in the spec. */
+  --color-status-notstarted: oklch(0.62 0.2 25);
+  --color-status-learning: oklch(0.78 0.16 85);
+  --color-status-revisiondue: oklch(0.7 0.18 55);
+  --color-status-revised: oklch(0.64 0.16 150);
+}
+
+html {
+  -webkit-text-size-adjust: 100%;
+}
+
+body {
+  @apply bg-slate-50 text-slate-900 antialiased;
+}
+
+@media (prefers-color-scheme: dark) {
+  body {
+    @apply bg-slate-950 text-slate-100;
+  }
+}
