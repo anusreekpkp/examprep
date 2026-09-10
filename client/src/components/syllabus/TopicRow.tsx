@@ -1,5 +1,16 @@
 import { useState } from 'react';
-import { STATUS_CLASSES, STATUS_LABELS, formatMinutes, type TopicNode } from '@/lib/syllabus';
+import {
+  DIFFICULTY_CLASSES,
+  DIFFICULTY_LABELS,
+  NEXT_DIFFICULTY,
+  STATUS_CLASSES,
+  STATUS_LABELS,
+  STATUS_ORDER,
+  formatMinutes,
+  type Difficulty,
+  type TopicNode,
+  type TopicStatus,
+} from '@/lib/syllabus';
 import { InlineForm } from './InlineForm';
 
 interface TopicRowProps {
@@ -9,6 +20,9 @@ interface TopicRowProps {
   onDelete: (topicId: string, name: string, childCount: number) => void;
   onToggleStar: (topic: TopicNode) => void;
   onAddChild: (parentTopicId: string, name: string) => Promise<void>;
+  onStatusChange: (topicId: string, status: TopicStatus) => void;
+  onDifficultyChange: (topicId: string, difficulty: Difficulty) => void;
+  onEstimateChange: (topicId: string, minutes: number) => Promise<void>;
 }
 
 export function TopicRow({
@@ -18,8 +32,11 @@ export function TopicRow({
   onDelete,
   onToggleStar,
   onAddChild,
+  onStatusChange,
+  onDifficultyChange,
+  onEstimateChange,
 }: TopicRowProps) {
-  const [mode, setMode] = useState<'view' | 'rename' | 'addChild'>('view');
+  const [mode, setMode] = useState<'view' | 'rename' | 'addChild' | 'estimate'>('view');
 
   return (
     <li>
@@ -55,15 +72,40 @@ export function TopicRow({
 
             <span className="min-w-0 flex-1 truncate text-sm">{topic.name}</span>
 
-            <span
-              className={`shrink-0 rounded-full px-2 py-0.5 text-xs font-medium ${STATUS_CLASSES[topic.status]}`}
+            {/* A select rather than a cycling button: four states are too many
+                to reach by repeated clicking, and this stays keyboard-usable. */}
+            <select
+              value={topic.status}
+              onChange={(event) => onStatusChange(topic.id, event.target.value as TopicStatus)}
+              aria-label={`Status of ${topic.name}`}
+              className={`shrink-0 cursor-pointer rounded-full border-0 px-2 py-0.5 text-xs font-medium outline-none focus:ring-2 focus:ring-brand-500/40 ${STATUS_CLASSES[topic.status]}`}
             >
-              {STATUS_LABELS[topic.status]}
-            </span>
+              {STATUS_ORDER.map((status) => (
+                <option key={status} value={status}>
+                  {STATUS_LABELS[status]}
+                </option>
+              ))}
+            </select>
 
-            <span className="shrink-0 text-xs text-slate-400 tabular-nums">
+            <button
+              type="button"
+              onClick={() => onDifficultyChange(topic.id, NEXT_DIFFICULTY[topic.difficulty])}
+              aria-label={`Difficulty of ${topic.name}: ${DIFFICULTY_LABELS[topic.difficulty]}. Click to change.`}
+              className={`shrink-0 rounded-full px-2 py-0.5 text-xs font-medium transition hover:opacity-80 ${DIFFICULTY_CLASSES[topic.difficulty]}`}
+            >
+              {DIFFICULTY_LABELS[topic.difficulty]}
+            </button>
+
+            {/* The estimate drives the "minutes a day to finish" pace figure,
+                so it has to be editable or that number means nothing. */}
+            <button
+              type="button"
+              onClick={() => setMode('estimate')}
+              aria-label={`Estimated study time for ${topic.name}: ${topic.estimatedMinutes} minutes. Click to change.`}
+              className="shrink-0 rounded px-1 text-xs text-slate-400 tabular-nums transition hover:bg-slate-100 hover:text-slate-700 dark:hover:bg-slate-700 dark:hover:text-slate-200"
+            >
               {formatMinutes(topic.estimatedMinutes)}
-            </span>
+            </button>
 
             <span className="flex shrink-0 gap-1">
               <RowAction onClick={() => setMode('addChild')}>+ sub</RowAction>
@@ -78,6 +120,25 @@ export function TopicRow({
           </>
         )}
       </div>
+
+      {mode === 'estimate' && (
+        <div style={{ paddingLeft: `${depth * 1.25 + 0.5}rem` }} className="py-2">
+          <InlineForm
+            placeholder="Minutes"
+            inputType="number"
+            min={5}
+            max={600}
+            initialValue={String(topic.estimatedMinutes)}
+            submitLabel="Save"
+            onSubmit={async (value) => {
+              const minutes = Number(value);
+              if (Number.isFinite(minutes)) await onEstimateChange(topic.id, minutes);
+              setMode('view');
+            }}
+            onCancel={() => setMode('view')}
+          />
+        </div>
+      )}
 
       {mode === 'addChild' && (
         <div style={{ paddingLeft: `${(depth + 1) * 1.25 + 0.5}rem` }} className="py-2">
@@ -104,6 +165,9 @@ export function TopicRow({
               onDelete={onDelete}
               onToggleStar={onToggleStar}
               onAddChild={onAddChild}
+              onStatusChange={onStatusChange}
+              onDifficultyChange={onDifficultyChange}
+              onEstimateChange={onEstimateChange}
             />
           ))}
         </ul>

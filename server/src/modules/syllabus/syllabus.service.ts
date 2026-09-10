@@ -16,6 +16,7 @@ import {
   type UpdateSubjectInput,
   type UpdateTopicInput,
 } from './syllabus.schema.js';
+import { completionPercent } from '../progress/statusWeight.js';
 import type { Difficulty, TopicStatus } from '../../generated/prisma/enums.js';
 
 // ------------------------------------------------------------------ dates --
@@ -234,6 +235,7 @@ export async function getExamTree(userId: string, examId: string) {
 
   const subjects = exam.subjects.map((subject) => {
     const nodes = buildTopicTree(subject.topics);
+    const statuses = subject.topics.map((t) => t.status);
     return {
       id: subject.id,
       name: subject.name,
@@ -241,6 +243,13 @@ export async function getExamTree(userId: string, examId: string) {
       weightage: subject.weightage,
       colorHex: subject.colorHex,
       topicCount: subject.topics.length,
+      // Rolled up here so the syllabus page can draw per-subject bars without
+      // a second request.
+      completionPercent: completionPercent(statuses),
+      notStarted: statuses.filter((s) => s === 'NOT_STARTED').length,
+      learning: statuses.filter((s) => s === 'LEARNING').length,
+      revisionDue: statuses.filter((s) => s === 'COMPLETED_REVISION_DUE').length,
+      wellRevised: statuses.filter((s) => s === 'WELL_REVISED').length,
       topics: nodes,
     };
   });
@@ -258,6 +267,7 @@ export async function getExamTree(userId: string, examId: string) {
     },
     subjects,
     stats: {
+      completionPercent: completionPercent(allTopics.map((t) => t.status)),
       totalTopics: allTopics.length,
       notStarted: allTopics.filter((t) => t.status === 'NOT_STARTED').length,
       learning: allTopics.filter((t) => t.status === 'LEARNING').length,

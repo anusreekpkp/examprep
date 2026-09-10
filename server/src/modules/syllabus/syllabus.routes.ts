@@ -4,6 +4,7 @@ import { asyncHandler } from '../../utils/asyncHandler.js';
 import { authenticate, requireUser } from '../../middleware/authenticate.js';
 import { validateBody } from '../../middleware/validate.js';
 import * as service from './syllabus.service.js';
+import * as progress from '../progress/progress.service.js';
 import {
   createExamSchema,
   createSubjectSchema,
@@ -12,6 +13,7 @@ import {
   updateExamSchema,
   updateSubjectSchema,
   updateTopicSchema,
+  updateTopicStatusSchema,
   type CreateExamInput,
   type CreateSubjectInput,
   type CreateTopicInput,
@@ -19,6 +21,7 @@ import {
   type UpdateExamInput,
   type UpdateSubjectInput,
   type UpdateTopicInput,
+  type UpdateTopicStatusInput,
 } from './syllabus.schema.js';
 
 export const syllabusRouter = Router();
@@ -169,6 +172,26 @@ syllabusRouter.patch(
       requireUser(req).id,
       req.params.topicId as string,
       req.body as UpdateTopicInput,
+    );
+    ok(res, { topic });
+  }),
+);
+
+syllabusRouter.get(
+  '/exams/:examId/progress',
+  asyncHandler(async (req: Request, res: Response) => {
+    ok(res, await progress.getExamProgress(requireUser(req).id, req.params.examId as string));
+  }),
+);
+
+syllabusRouter.patch(
+  '/topics/:topicId/status',
+  validateBody(updateTopicStatusSchema),
+  asyncHandler(async (req: Request, res: Response) => {
+    const topic = await progress.updateTopicStatus(
+      requireUser(req).id,
+      req.params.topicId as string,
+      req.body as UpdateTopicStatusInput,
     );
     ok(res, { topic });
   }),

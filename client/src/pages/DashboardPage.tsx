@@ -2,14 +2,15 @@ import { Link } from 'react-router-dom';
 import { AppShell } from '@/components/AppShell';
 import { Alert, Button, Card } from '@/components/ui';
 import { useAuthStore } from '@/stores/authStore';
-import { useExams } from '@/hooks/useSyllabus';
+import { useExamProgress, useExams } from '@/hooks/useSyllabus';
+import { ProgressSummary } from '@/components/ProgressSummary';
 import { extractErrorMessage } from '@/lib/api';
 
 const phases = [
   { id: 0, name: 'Foundation', detail: 'Monorepo, TypeScript, Git, Render deploy pipeline', done: true },
   { id: 1, name: 'Auth & data model', detail: '14-model Prisma schema, JWT auth, protected routes', done: true },
   { id: 2, name: 'Exams & syllabus tree', detail: 'Subject → topic hierarchy, templates, manual editing', done: true },
-  { id: 3, name: 'Progress tracking', detail: 'Four-state topic status, rollup percentages, dashboard', done: false },
+  { id: 3, name: 'Progress tracking', detail: 'Four-state topic status, rollup percentages, dashboard', done: true },
   { id: 4, name: 'Revision engine', detail: 'Spaced repetition with Easy / Moderate / Difficult feedback', done: false },
   { id: 5, name: 'Study timer', detail: 'Focus sessions logged against a specific topic', done: false },
   { id: 6, name: 'Priority engine', detail: '"What should I study next?" scoring across every topic', done: false },
@@ -24,6 +25,9 @@ export default function DashboardPage() {
   const nextExam = exams
     ?.filter((exam) => exam.daysRemaining >= 0)
     .sort((a, b) => a.daysRemaining - b.daysRemaining)[0];
+
+  // Only the nearest exam gets a full progress breakdown; the rest stay a list.
+  const { data: progress } = useExamProgress(nextExam?.id);
 
   return (
     <AppShell>
@@ -73,6 +77,12 @@ export default function DashboardPage() {
             <Button variant="ghost">Open syllabus</Button>
           </Link>
         </Card>
+      )}
+
+      {progress && progress.overall.totalTopics > 0 && (
+        <div className="mt-4">
+          <ProgressSummary progress={progress} />
+        </div>
       )}
 
       <section className="mt-8">

@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import type { SubjectNode, TopicNode } from '@/lib/syllabus';
+import type { Difficulty, SubjectNode, TopicNode, TopicStatus } from '@/lib/syllabus';
 import { Card } from '@/components/ui';
 import { InlineForm } from './InlineForm';
 import { TopicRow } from './TopicRow';
@@ -15,6 +15,9 @@ interface SubjectCardProps {
   onRenameTopic: (topicId: string, name: string) => Promise<void>;
   onDeleteTopic: (topicId: string, name: string, childCount: number) => void;
   onToggleStar: (topic: TopicNode) => void;
+  onStatusChange: (topicId: string, status: TopicStatus) => void;
+  onDifficultyChange: (topicId: string, difficulty: Difficulty) => void;
+  onEstimateChange: (topicId: string, minutes: number) => Promise<void>;
 }
 
 export function SubjectCard({
@@ -28,6 +31,9 @@ export function SubjectCard({
   onRenameTopic,
   onDeleteTopic,
   onToggleStar,
+  onStatusChange,
+  onDifficultyChange,
+  onEstimateChange,
 }: SubjectCardProps) {
   // Collapsed by default would hide a 13-topic subject behind a click; expanded
   // by default matches how a student scans a syllabus.
@@ -92,6 +98,24 @@ export function SubjectCard({
         )}
       </div>
 
+      {subject.topicCount > 0 && (
+        <div className="mt-3 pl-8">
+          <div className="flex items-center justify-between text-xs text-slate-500">
+            <span>{subject.completionPercent}% covered</span>
+            <span className="tabular-nums">
+              {subject.wellRevised} revised · {subject.revisionDue} due · {subject.learning}{' '}
+              learning · {subject.notStarted} not started
+            </span>
+          </div>
+          <div className="mt-1 h-1.5 overflow-hidden rounded-full bg-slate-200 dark:bg-slate-800">
+            <div
+              className="h-full rounded-full bg-brand-500 transition-all"
+              style={{ width: `${subject.completionPercent}%` }}
+            />
+          </div>
+        </div>
+      )}
+
       {mode === 'addTopic' && (
         <div className="mt-3 pl-8">
           <InlineForm
@@ -125,6 +149,9 @@ export function SubjectCard({
                   onAddChild={(parentTopicId, name) =>
                     onAddTopic(subject.id, name, parentTopicId)
                   }
+                  onStatusChange={onStatusChange}
+                  onDifficultyChange={onDifficultyChange}
+                  onEstimateChange={onEstimateChange}
                 />
               ))}
             </ul>

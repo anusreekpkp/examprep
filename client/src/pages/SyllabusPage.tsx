@@ -5,7 +5,13 @@ import { Alert, Button, Card } from '@/components/ui';
 import { SubjectCard } from '@/components/syllabus/SubjectCard';
 import { InlineForm } from '@/components/syllabus/InlineForm';
 import { extractErrorMessage } from '@/lib/api';
-import { formatMinutes, type SubjectNode, type TopicNode } from '@/lib/syllabus';
+import {
+  formatMinutes,
+  type Difficulty,
+  type SubjectNode,
+  type TopicNode,
+  type TopicStatus,
+} from '@/lib/syllabus';
 import {
   useCreateSubject,
   useCreateTopic,
@@ -15,6 +21,7 @@ import {
   useReorderSubjects,
   useUpdateSubject,
   useUpdateTopic,
+  useUpdateTopicStatus,
 } from '@/hooks/useSyllabus';
 
 export default function SyllabusPage() {
@@ -31,6 +38,7 @@ export default function SyllabusPage() {
   const createTopic = useCreateTopic(id);
   const updateTopic = useUpdateTopic(id);
   const deleteTopic = useDeleteTopic(id);
+  const updateStatus = useUpdateTopicStatus(id);
 
   /** Mutations surface one shared error line rather than failing silently. */
   const run = async (action: () => Promise<unknown>, fallback: string) => {
@@ -70,6 +78,27 @@ export default function SyllabusPage() {
     void run(() => deleteTopic.mutateAsync(topicId), 'Could not delete the topic');
   };
 
+  const handleStatusChange = (topicId: string, status: TopicStatus) => {
+    void run(
+      () => updateStatus.mutateAsync({ topicId, status }),
+      'Could not update the topic status',
+    );
+  };
+
+  const handleDifficultyChange = (topicId: string, difficulty: Difficulty) => {
+    void run(
+      () => updateTopic.mutateAsync({ topicId, difficulty }),
+      'Could not update the difficulty',
+    );
+  };
+
+  const handleEstimateChange = async (topicId: string, minutes: number) => {
+    await run(
+      () => updateTopic.mutateAsync({ topicId, estimatedMinutes: minutes }),
+      'Could not update the time estimate',
+    );
+  };
+
   const handleToggleStar = (topic: TopicNode) => {
     void run(
       () => updateTopic.mutateAsync({ topicId: topic.id, isStarred: !topic.isStarred }),
@@ -97,8 +126,9 @@ export default function SyllabusPage() {
   }
 
   const { exam, subjects, stats } = data;
-  const completed = stats.wellRevised + stats.revisionDue;
-  const percent = stats.totalTopics === 0 ? 0 : Math.round((completed / stats.totalTopics) * 100);
+  // Server-side weighted figure: Learning counts half, Revision due 0.8,
+  // Well revised full. See server/src/modules/progress/statusWeight.ts.
+  const percent = stats.completionPercent;
 
   return (
     <AppShell>
@@ -132,7 +162,7 @@ export default function SyllabusPage() {
         <div className="flex items-center justify-between text-sm">
           <span className="font-medium">Syllabus covered</span>
           <span className="tabular-nums text-slate-500">
-            {completed} of {stats.totalTopics} topics · {percent}%
+            {percent}% of {stats.totalTopics} topics
           </span>
         </div>
         <div className="mt-2 h-2 overflow-hidden rounded-full bg-slate-200 dark:bg-slate-800">
@@ -194,6 +224,9 @@ export default function SyllabusPage() {
             }}
             onDeleteTopic={handleDeleteTopic}
             onToggleStar={handleToggleStar}
+            onStatusChange={handleStatusChange}
+            onDifficultyChange={handleDifficultyChange}
+            onEstimateChange={handleEstimateChange}
           />
         ))}
       </div>

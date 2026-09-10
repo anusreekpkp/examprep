@@ -4,6 +4,7 @@ import * as syllabus from '@/lib/syllabus';
 export const examKeys = {
   all: ['exams'] as const,
   tree: (examId: string) => ['exams', examId] as const,
+  progress: (examId: string) => ['exams', examId, 'progress'] as const,
   templates: ['templates'] as const,
 };
 
@@ -18,6 +19,14 @@ export function useTemplates() {
 
 export function useExams() {
   return useQuery({ queryKey: examKeys.all, queryFn: syllabus.fetchExams });
+}
+
+export function useExamProgress(examId: string | undefined) {
+  return useQuery({
+    queryKey: examKeys.progress(examId ?? ''),
+    queryFn: () => syllabus.fetchExamProgress(examId as string),
+    enabled: Boolean(examId),
+  });
 }
 
 export function useExamTree(examId: string | undefined) {
@@ -108,6 +117,16 @@ export function useUpdateTopic(examId: string) {
     (args: { topicId: string } & Parameters<typeof syllabus.updateTopic>[1]) => {
       const { topicId, ...payload } = args;
       return syllabus.updateTopic(topicId, payload);
+    },
+    examId,
+  );
+}
+
+export function useUpdateTopicStatus(examId: string) {
+  return useSyllabusMutation(
+    (args: { topicId: string } & Parameters<typeof syllabus.updateTopicStatus>[1]) => {
+      const { topicId, ...payload } = args;
+      return syllabus.updateTopicStatus(topicId, payload);
     },
     examId,
   );

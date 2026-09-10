@@ -25,6 +25,11 @@ export interface SubjectNode {
   weightage: number;
   colorHex: string | null;
   topicCount: number;
+  completionPercent: number;
+  notStarted: number;
+  learning: number;
+  revisionDue: number;
+  wellRevised: number;
   topics: TopicNode[];
 }
 
@@ -51,6 +56,7 @@ export interface ExamTree {
   };
   subjects: SubjectNode[];
   stats: {
+    completionPercent: number;
     totalTopics: number;
     notStarted: number;
     learning: number;
@@ -58,6 +64,54 @@ export interface ExamTree {
     wellRevised: number;
     starred: number;
     estimatedMinutesRemaining: number;
+  };
+}
+
+export interface SubjectProgress {
+  id: string;
+  name: string;
+  weightage: number;
+  totalTopics: number;
+  notStarted: number;
+  learning: number;
+  revisionDue: number;
+  wellRevised: number;
+  completionPercent: number;
+  weakTopics: number;
+  estimatedMinutesRemaining: number;
+}
+
+export interface OverallProgress {
+  totalTopics: number;
+  notStarted: number;
+  learning: number;
+  revisionDue: number;
+  wellRevised: number;
+  completionPercent: number;
+  weakTopics: number;
+  estimatedMinutesRemaining: number;
+  /** Coverage weighted by each subject's share of the paper. */
+  weightedReadiness: number;
+  starred: number;
+  /** Completed but never actually revised - the silent backlog. */
+  neverRevised: number;
+}
+
+export interface ExamProgress {
+  exam: {
+    id: string;
+    name: string;
+    examDate: string;
+    daysRemaining: number;
+    dailyAvailableMinutes: number;
+  };
+  overall: OverallProgress;
+  subjects: SubjectProgress[];
+  pace: {
+    minutesNeededPerDay: number | null;
+    dailyAvailableMinutes: number;
+    onTrack: boolean | null;
+    weakestSubject: string | null;
   };
 }
 
@@ -85,6 +139,11 @@ export async function fetchTemplates(): Promise<SyllabusTemplate[]> {
 export async function fetchExams(): Promise<ExamSummary[]> {
   const { data } = await api.get<Envelope<{ exams: ExamSummary[] }>>('/api/exams');
   return data.data.exams;
+}
+
+export async function fetchExamProgress(examId: string): Promise<ExamProgress> {
+  const { data } = await api.get<Envelope<ExamProgress>>(`/api/exams/${examId}/progress`);
+  return data.data;
 }
 
 export async function fetchExamTree(examId: string): Promise<ExamTree> {
@@ -164,6 +223,13 @@ export async function updateTopic(
   await api.patch(`/api/topics/${topicId}`, payload);
 }
 
+export async function updateTopicStatus(
+  topicId: string,
+  payload: { status: TopicStatus; difficulty?: Difficulty },
+): Promise<void> {
+  await api.patch(`/api/topics/${topicId}/status`, payload);
+}
+
 export async function deleteTopic(topicId: string): Promise<void> {
   await api.delete(`/api/topics/${topicId}`);
 }
@@ -184,6 +250,32 @@ export const STATUS_CLASSES: Record<TopicStatus, string> = {
   COMPLETED_REVISION_DUE: 'bg-orange-100 text-orange-800 dark:bg-orange-950 dark:text-orange-200',
   WELL_REVISED: 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-200',
 };
+
+export const DIFFICULTY_LABELS: Record<Difficulty, string> = {
+  EASY: 'Easy',
+  MODERATE: 'Moderate',
+  DIFFICULT: 'Difficult',
+};
+
+export const DIFFICULTY_CLASSES: Record<Difficulty, string> = {
+  EASY: 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300',
+  MODERATE: 'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300',
+  DIFFICULT: 'bg-red-50 text-red-700 dark:bg-red-950 dark:text-red-300',
+};
+
+/** Clicking the difficulty chip cycles through the three levels. */
+export const NEXT_DIFFICULTY: Record<Difficulty, Difficulty> = {
+  EASY: 'MODERATE',
+  MODERATE: 'DIFFICULT',
+  DIFFICULT: 'EASY',
+};
+
+export const STATUS_ORDER: TopicStatus[] = [
+  'NOT_STARTED',
+  'LEARNING',
+  'COMPLETED_REVISION_DUE',
+  'WELL_REVISED',
+];
 
 export function formatMinutes(total: number): string {
   if (total < 60) return `${total}m`;

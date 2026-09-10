@@ -64,7 +64,7 @@ trio, so each phase adds a folder rather than editing shared files.
 | 0 | Monorepo, TypeScript, Git, Render pipeline, health check | ✅ Done |
 | 1 | 14-model Prisma schema, JWT auth with refresh rotation, protected routes | ✅ Done |
 | 2 | Exam creation, syllabus tree, subject/topic CRUD, templates | ✅ Done |
-| 3 | Four-state progress tracking and dashboard rollups | |
+| 3 | Four-state progress tracking and dashboard rollups | ✅ Done |
 | 4 | Adaptive revision engine (1 → 3 → 7 → 15 → 30 days) | |
 | 5 | Focus timer that logs sessions against topics | |
 | 6 | Priority scoring — "your next 3 priorities" | |
@@ -173,6 +173,42 @@ students' data.
 Topic `status` is deliberately **not** patchable here. Marking a topic complete
 has to seed the revision ladder, so that gets its own endpoint in Phase 4
 instead of riding along on a generic update.
+
+## Progress model
+
+Topic status is deliberately **not** binary. Each state carries partial credit:
+
+| Status | Weight |
+|--------|--------|
+| Not started | 0 |
+| Learning | 0.5 |
+| Completed - revision due | 0.8 |
+| Well revised | 1.0 |
+
+Done/not-done would report a student who has *learned every topic but revised
+none* as 0%, which is both wrong and demoralising. Partial credit makes the
+number move as work happens, and makes revision visibly worth doing: finishing
+the ladder is the difference between 0.8 and 1. The table lives in
+`server/src/modules/progress/statusWeight.ts`, shared by the syllabus tree and
+the rollups so neither can drift.
+
+Two percentages are reported, and they answer different questions:
+
+- **`completionPercent`** - how much of the syllabus is covered, topic by topic.
+- **`weightedReadiness`** - the same, weighted by each subject's share of the
+  paper. A student can be 70% through the syllabus while weak on the subject
+  carrying half the marks, and only this number shows it.
+
+Status changes go through `PATCH /api/topics/:id/status` rather than the generic
+topic update, because a transition has side effects: it stamps `completedAt`,
+`lastStudiedAt` and `lastRevisedAt`, and Phase 4 will seed the revision ladder
+from the same place. Re-marking an already-completed topic preserves the
+original `completedAt`, so revision does not rewrite history.
+
+`GET /api/exams/:examId/progress` returns per-subject rollups plus the pace
+figures the dashboard turns into plain sentences: how many topics remain, how
+many were completed but never revised, how many are marked difficult, and
+whether the student's stated daily hours are enough for the days left.
 
 ## Authentication design
 

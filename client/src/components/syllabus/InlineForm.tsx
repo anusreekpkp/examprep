@@ -7,6 +7,10 @@ interface InlineFormProps {
   submitLabel: string;
   onSubmit: (value: string) => void | Promise<void>;
   onCancel: () => void;
+  /** "number" for the estimated-minutes editor; defaults to free text. */
+  inputType?: 'text' | 'number';
+  min?: number;
+  max?: number;
 }
 
 /**
@@ -20,6 +24,9 @@ export function InlineForm({
   submitLabel,
   onSubmit,
   onCancel,
+  inputType = 'text',
+  min,
+  max,
 }: InlineFormProps) {
   const [value, setValue] = useState(initialValue);
   const [isBusy, setIsBusy] = useState(false);
@@ -46,6 +53,9 @@ export function InlineForm({
     <div className="flex flex-wrap items-center gap-2">
       <Input
         ref={inputRef}
+        type={inputType}
+        {...(min === undefined ? {} : { min })}
+        {...(max === undefined ? {} : { max })}
         value={value}
         placeholder={placeholder}
         onChange={(event) => setValue(event.target.value)}

@@ -76,6 +76,17 @@ export const updateTopicSchema = z
     message: 'Provide at least one field to update',
   });
 
+/**
+ * Status lives on its own endpoint rather than in updateTopicSchema because a
+ * transition has side effects - timestamps now, and the revision ladder in
+ * Phase 4 - which a generic field patch should not silently trigger.
+ */
+export const updateTopicStatusSchema = z.object({
+  status: z.enum(['NOT_STARTED', 'LEARNING', 'COMPLETED_REVISION_DUE', 'WELL_REVISED']),
+  /** Optional self-assessment captured at the same moment. */
+  difficulty: z.enum(['EASY', 'MODERATE', 'DIFFICULT']).optional(),
+});
+
 export const reorderSchema = z.object({
   /** Full list of sibling ids in their new order. */
   ids: z.array(z.string().min(1)).min(1, 'Provide the ids to reorder'),
@@ -107,5 +118,6 @@ export type CreateSubjectInput = z.infer<typeof createSubjectSchema>;
 export type UpdateSubjectInput = z.infer<typeof updateSubjectSchema>;
 export type CreateTopicInput = z.infer<typeof createTopicSchema>;
 export type UpdateTopicInput = z.infer<typeof updateTopicSchema>;
+export type UpdateTopicStatusInput = z.infer<typeof updateTopicStatusSchema>;
 export type ReorderInput = z.infer<typeof reorderSchema>;
 export type TemplateStructure = z.infer<typeof templateStructureSchema>;
