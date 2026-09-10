@@ -14,8 +14,35 @@ import {
 interface DraftSubject {
   include: boolean;
   name: string;
-  /** One topic per line - the quickest thing to tidy by hand. */
+  /**
+   * One topic per line, with sub-topics indented by two spaces. Plain text is
+   * the fastest thing to tidy by hand, and indentation is a familiar way to
+   * express nesting without a drag-and-drop tree.
+   */
   topicsText: string;
+}
+
+/** An indented line becomes a sub-topic of the line above it. */
+function parseTopicsText(text: string): { name: string; children: string[] }[] {
+  const topics: { name: string; children: string[] }[] = [];
+
+  for (const rawLine of text.split('\n')) {
+    const name = rawLine.trim();
+    if (!name) continue;
+    const isChild = /^\s/.test(rawLine);
+    const parent = topics.at(-1);
+    // An indented first line has no parent to attach to, so it is promoted.
+    if (isChild && parent) parent.children.push(name);
+    else topics.push({ name, children: [] });
+  }
+
+  return topics;
+}
+
+function toTopicsText(topics: { name: string; children: { name: string }[] }[]): string {
+  return topics
+    .map((topic) => [topic.name, ...topic.children.map((child) => `  ${child.name}`)].join('\n'))
+    .join('\n');
 }
 
 /**
@@ -56,7 +83,7 @@ export function ImportSyllabusDialog({
         uploaded.preview.subjects.map((subject) => ({
           include: true,
           name: subject.name,
-          topicsText: subject.topics.map((topic) => topic.name).join('\n'),
+          topicsText: toTopicsText(subject.topics),
         })),
       );
       setStage('review');
@@ -75,10 +102,7 @@ export function ImportSyllabusDialog({
       .filter((draft) => draft.include && draft.name.trim())
       .map((draft) => ({
         name: draft.name.trim(),
-        topics: draft.topicsText
-          .split('\n')
-          .map((line) => line.trim())
-          .filter(Boolean),
+        topics: parseTopicsText(draft.topicsText),
       }))
       .filter((subject) => subject.topics.length > 0);
 
@@ -195,7 +219,8 @@ export function ImportSyllabusDialog({
           ) : (
             <>
               <p className="text-sm text-slate-500">
-                Edit anything below before importing. One topic per line.
+                Edit anything below before importing. One topic per line; indent a line
+                with two spaces to make it a sub-topic.
               </p>
 
               <div className="space-y-3">

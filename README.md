@@ -192,16 +192,35 @@ asking the student to upload the file again.
 | PNG / JPEG / WebP | `tesseract.js` OCR, a few seconds |
 | Scanned PDF | Rejected with a message telling the student to photograph the page instead - a scan is an image wrapped in a PDF and has no text to read |
 
-`parseSyllabus` then proposes a subject/topic tree. Real syllabus documents are
-wildly inconsistent, so the rules are heuristics and the student **always
-reviews the result before anything is written**:
+`parseSyllabus` then proposes a subject/topic tree. Two document shapes have to
+work, and they are structurally different:
 
-1. `Subject: a, b, c` on one line becomes a subject with three topics.
-2. A bulleted or numbered line is a topic under the current heading.
-3. An unbulleted line is a heading if it is ALL CAPS, starts with a word like
-   "Paper" or "Unit", ends in a colon, or is followed by a bulleted line.
-4. Page furniture (`Page 2 of 5`, dotted contents leaders) is discarded, and
-   anything the parser could not place is reported rather than silently dropped.
+- **Bulleted** (SSC, Kerala PSC): one topic per line under a heading.
+- **Prose** (GATE, UPSC): paragraphs of the form `Label: item, item. Label: item`,
+  wrapped at the page margin.
+
+The prose shape is the reason the parser rejoins lines before doing anything
+else. A PDF breaks a sentence wherever the page runs out, so treating each
+physical line as an item shreds one sentence into four topics and mistakes any
+fragment ending in a colon - `Graphs:` - for a heading. A line of at least 60
+characters is assumed to have wrapped and is joined to the next; deliberately
+short lines (list items, headings) fall below that and stay separate.
+
+After unwrapping:
+
+1. `Section 1: ...`, `Paper II - ...` and ALL CAPS banners are subjects.
+2. Inside a section, `Discrete Mathematics:` names a **topic**, and its comma
+   list becomes that topic's **sub-topics**.
+3. With no section above it, a label is the subject itself - so
+   `Quantitative Aptitude: Number System, Percentage` still works standalone.
+4. A bulleted or numbered line is always a topic, never a heading.
+5. Parentheticals survive splitting: `(ARP, DHCP, ICMP)` stays one item.
+6. Page furniture (`Page 2 of 5`, dotted contents leaders, `*Note:` footnotes)
+   is discarded, and anything unplaced is reported rather than silently dropped.
+
+The rules are heuristics, so the student **always reviews before anything is
+written**. In the preview, one topic per line and two leading spaces makes a
+line a sub-topic.
 
 Applying an import **merges subjects by name**, case-insensitively, and skips
 topics that already exist. Importing Paper 1 and Paper 2 separately would

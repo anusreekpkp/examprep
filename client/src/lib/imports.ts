@@ -1,8 +1,13 @@
 import { api } from './api';
 
+export interface ParsedTopic {
+  name: string;
+  children: ParsedTopic[];
+}
+
 export interface ParsedSubject {
   name: string;
-  topics: { name: string }[];
+  topics: ParsedTopic[];
 }
 
 export interface SyllabusImportRecord {
@@ -56,7 +61,7 @@ export async function uploadSyllabus(examId: string, file: File): Promise<Import
 
 export async function applyImport(
   importId: string,
-  subjects: { name: string; topics: string[] }[],
+  subjects: { name: string; topics: { name: string; children: string[] }[] }[],
 ): Promise<{ subjectsCreated: number; topicsCreated: number }> {
   const { data } = await api.post<Envelope<{ subjectsCreated: number; topicsCreated: number }>>(
     `/api/syllabus-imports/${importId}/apply`,

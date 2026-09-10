@@ -5,12 +5,18 @@ import { assertExamOwned } from '../../utils/ownership.js';
 import { extractSyllabusText } from './extract.js';
 import { parseSyllabus } from './parseSyllabus.js';
 
+/** One level of nesting, matching what the parser produces and the UI edits. */
+const importTopicSchema = z.object({
+  name: z.string().trim().min(1).max(200),
+  children: z.array(z.string().trim().min(1).max(200)).default([]),
+});
+
 export const applyImportSchema = z.object({
   subjects: z
     .array(
       z.object({
         name: z.string().trim().min(1).max(120),
-        topics: z.array(z.string().trim().min(1).max(200)).default([]),
+        topics: z.array(importTopicSchema).default([]),
       }),
     )
     .min(1, 'Keep at least one subject to import'),
@@ -120,6 +126,29 @@ export async function applyImport(userId: string, importId: string, input: Apply
 
   await prisma.$transaction(
     async (tx) => {
+      /** Creates a topic and its sub-topics, returning how many rows were written. */
+      const createTopic = async (
+        subjectId: string,
+        topic: { name: string; children: string[] },
+        position: number,
+      ): Promise<number> => {
+        const created = await tx.topic.create({
+          data: { subjectId, name: topic.name, orderIndex: position },
+          select: { id: true },
+        });
+        if (topic.children.length > 0) {
+          await tx.topic.createMany({
+            data: topic.children.map((name, index) => ({
+              subjectId,
+              parentTopicId: created.id,
+              name,
+              orderIndex: index,
+            })),
+          });
+        }
+        return 1 + topic.children.length;
+      };
+
       for (const subject of input.subjects) {
         // Importing Paper 1 and Paper 2 separately often repeats a subject name.
         // Appending blindly would split one subject in two, so same-named
@@ -130,7 +159,7 @@ export async function applyImport(userId: string, importId: string, input: Apply
 
         if (existing) {
           const taken = new Set(existing.topics.map((t) => t.name.toLowerCase()));
-          const fresh = subject.topics.filter((name) => !taken.has(name.toLowerCase()));
+          const fresh = subject.topics.filter((topic) => !taken.has(topic.name.toLowerCase()));
           if (fresh.length === 0) continue;
 
           const last = await tx.topic.aggregate({
@@ -139,29 +168,20 @@ export async function applyImport(userId: string, importId: string, input: Apply
           });
           let topicOrder = (last._max.orderIndex ?? -1) + 1;
 
-          await tx.topic.createMany({
-            data: fresh.map((name) => ({
-              subjectId: existing.id,
-              name,
-              orderIndex: topicOrder++,
-            })),
-          });
-          topicsCreated += fresh.length;
+          for (const topic of fresh) {
+            topicsCreated += await createTopic(existing.id, topic, topicOrder++);
+          }
           continue;
         }
 
-        await tx.subject.create({
-          data: {
-            examId: record.examId,
-            name: subject.name,
-            orderIndex: orderIndex++,
-            topics: {
-              create: subject.topics.map((name, index) => ({ name, orderIndex: index })),
-            },
-          },
+        const createdSubject = await tx.subject.create({
+          data: { examId: record.examId, name: subject.name, orderIndex: orderIndex++ },
+          select: { id: true },
         });
         subjectsCreated += 1;
-        topicsCreated += subject.topics.length;
+        for (const [index, topic] of subject.topics.entries()) {
+          topicsCreated += await createTopic(createdSubject.id, topic, index);
+        }
       }
 
       await tx.syllabusImport.update({
