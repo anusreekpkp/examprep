@@ -10,6 +10,7 @@ import DashboardPage from '@/pages/DashboardPage';
 import ExamsPage from '@/pages/ExamsPage';
 import ExamNewPage from '@/pages/ExamNewPage';
 import SyllabusPage from '@/pages/SyllabusPage';
+import RevisionsPage from '@/pages/RevisionsPage';
 
 export default function App() {
   const bootstrap = useAuthStore((s) => s.bootstrap);
@@ -54,6 +55,15 @@ export default function App() {
         element={
           <ProtectedRoute>
             <SyllabusPage />
+          </ProtectedRoute>
+        }
+      />
+
+      <Route
+        path="/revisions"
+        element={
+          <ProtectedRoute>
+            <RevisionsPage />
           </ProtectedRoute>
         }
       />

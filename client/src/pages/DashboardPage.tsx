@@ -3,6 +3,8 @@ import { AppShell } from '@/components/AppShell';
 import { Alert, Button, Card } from '@/components/ui';
 import { useAuthStore } from '@/stores/authStore';
 import { useExamProgress, useExams } from '@/hooks/useSyllabus';
+import { useDueRevisions } from '@/hooks/useRevisions';
+import { formatMinutes } from '@/lib/syllabus';
 import { ProgressSummary } from '@/components/ProgressSummary';
 import { extractErrorMessage } from '@/lib/api';
 
@@ -11,7 +13,7 @@ const phases = [
   { id: 1, name: 'Auth & data model', detail: '14-model Prisma schema, JWT auth, protected routes', done: true },
   { id: 2, name: 'Exams & syllabus tree', detail: 'Subject → topic hierarchy, templates, manual editing', done: true },
   { id: 3, name: 'Progress tracking', detail: 'Four-state topic status, rollup percentages, dashboard', done: true },
-  { id: 4, name: 'Revision engine', detail: 'Spaced repetition with Easy / Moderate / Difficult feedback', done: false },
+  { id: 4, name: 'Revision engine', detail: 'Spaced repetition with Easy / Moderate / Difficult feedback', done: true },
   { id: 5, name: 'Study timer', detail: 'Focus sessions logged against a specific topic', done: false },
   { id: 6, name: 'Priority engine', detail: '"What should I study next?" scoring across every topic', done: false },
   { id: 7, name: 'Planner, mocks & analytics', detail: 'Daily plans, mock test tracker, weekly reports', done: false },
@@ -28,6 +30,7 @@ export default function DashboardPage() {
 
   // Only the nearest exam gets a full progress breakdown; the rest stay a list.
   const { data: progress } = useExamProgress(nextExam?.id);
+  const { data: due } = useDueRevisions();
 
   return (
     <AppShell>
@@ -75,6 +78,36 @@ export default function DashboardPage() {
           </div>
           <Link to={`/exams/${nextExam.id}`} className="mt-4 inline-block">
             <Button variant="ghost">Open syllabus</Button>
+          </Link>
+        </Card>
+      )}
+
+      {due && due.dueCount > 0 && (
+        <Card className="mt-4 border-brand-200 dark:border-brand-700/40">
+          <div className="flex flex-wrap items-start justify-between gap-4">
+            <div>
+              <p className="text-xs uppercase tracking-wide text-slate-500">Today</p>
+              <h2 className="mt-1 text-lg font-medium">
+                {due.dueCount} {due.dueCount === 1 ? 'revision is' : 'revisions are'} due
+                {due.overdueCount > 0 && (
+                  <span className="text-red-600 dark:text-red-400">
+                    {' '}
+                    · {due.overdueCount} overdue
+                  </span>
+                )}
+              </h2>
+              <p className="mt-1 text-sm text-slate-500">
+                About {formatMinutes(due.estimatedMinutes)} ·{' '}
+                {due.revisions
+                  .slice(0, 3)
+                  .map((r) => r.topic.name)
+                  .join(', ')}
+                {due.dueCount > 3 && ` and ${due.dueCount - 3} more`}
+              </p>
+            </div>
+          </div>
+          <Link to="/revisions" className="mt-4 inline-block">
+            <Button>Start revising</Button>
           </Link>
         </Card>
       )}

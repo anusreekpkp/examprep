@@ -4,6 +4,8 @@ import { assertTopicOwned } from '../../utils/ownership.js';
 import { daysUntil } from '../syllabus/syllabus.service.js';
 import type { UpdateTopicStatusInput } from '../syllabus/syllabus.schema.js';
 import { STATUS_WEIGHT } from './statusWeight.js';
+import { clearLadder, seedLadder } from '../revision/revision.service.js';
+import { localDateKey, safeTimeZone } from '../../utils/dates.js';
 import type { Difficulty, TopicStatus } from '../../generated/prisma/enums.js';
 
 // ----------------------------------------------------------- transitions --
@@ -21,7 +23,12 @@ export async function updateTopicStatus(
 
   const current = await prisma.topic.findUnique({
     where: { id: topicId },
-    select: { status: true, completedAt: true },
+    select: {
+      status: true,
+      completedAt: true,
+      _count: { select: { revisions: { where: { status: 'PENDING' } } } },
+      subject: { select: { exam: { select: { user: { select: { timezone: true } } } } } },
+    },
   });
   if (!current) throw ApiError.notFound('Topic not found');
 
@@ -57,7 +64,25 @@ export async function updateTopicStatus(
       break;
   }
 
-  return prisma.topic.update({ where: { id: topicId }, data });
+  const timeZone = safeTimeZone(current.subject.exam.user.timezone);
+  const todayKey = localDateKey(now, timeZone);
+  const hasPendingLadder = current._count.revisions > 0;
+
+  return prisma.$transaction(async (tx) => {
+    const topic = await tx.topic.update({ where: { id: topicId }, data });
+
+    if (input.status === 'COMPLETED_REVISION_DUE') {
+      // Only seed when nothing is pending. Re-marking a topic that is already
+      // part-way through its ladder must not wipe the progress made through it.
+      if (!hasPendingLadder) await seedLadder(tx, topicId, todayKey);
+    } else {
+      // Back to Not started / Learning, or manually declared Well revised:
+      // either way the outstanding schedule no longer applies.
+      await clearLadder(tx, topicId);
+    }
+
+    return topic;
+  });
 }
 
 // -------------------------------------------------------------- rollups --

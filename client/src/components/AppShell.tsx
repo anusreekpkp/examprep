@@ -8,6 +8,7 @@ import { Button } from '@/components/ui';
 const navItems = [
   { to: '/dashboard', label: 'Dashboard' },
   { to: '/exams', label: 'Exams' },
+  { to: '/revisions', label: 'Revisions' },
 ];
 
 export function AppShell({ children }: { children: ReactNode }) {

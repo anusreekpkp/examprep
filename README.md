@@ -65,7 +65,7 @@ trio, so each phase adds a folder rather than editing shared files.
 | 1 | 14-model Prisma schema, JWT auth with refresh rotation, protected routes | ✅ Done |
 | 2 | Exam creation, syllabus tree, subject/topic CRUD, templates | ✅ Done |
 | 3 | Four-state progress tracking and dashboard rollups | ✅ Done |
-| 4 | Adaptive revision engine (1 → 3 → 7 → 15 → 30 days) | |
+| 4 | Adaptive revision engine (1 → 3 → 7 → 15 → 30 days) | ✅ Done |
 | 5 | Focus timer that logs sessions against topics | |
 | 6 | Priority scoring — "your next 3 priorities" | |
 | 7 | Daily planner, mock test tracker, analytics | |
@@ -229,6 +229,60 @@ otherwise split a shared subject in two.
 > On Render's free tier the OCR language data is re-downloaded after a cold
 > start, because the disk is ephemeral. The first image upload after the service
 > wakes is therefore slower than later ones. PDFs are unaffected.
+
+## Revision engine
+
+Marking a topic **Revision due** seeds a ladder of five revisions at **1, 3, 7,
+15 and 30 days**. Expanding gaps are the point of spaced repetition: each
+successful recall buys a longer wait before the next attempt.
+
+### What makes it adaptive
+
+Rating a revision **Easy / Moderate / Difficult** rescheduses everything still
+ahead, by scaling the *remaining gaps* rather than recomputing from scratch:
+
+| Verdict | Multiplier | Ladder after rating stage 1 today |
+|---------|-----------|-----------------------------------|
+| Easy | ×1.5 | +3, +9, +21, +44 days |
+| Moderate | ×1.0 | +2, +6, +14, +29 days |
+| Difficult | ×0.5 | +1, +3, +7, +15 days |
+
+Scaling the gaps keeps the ladder expanding, so rating one revision Difficult
+pulls the next one closer without collapsing the schedule into a cluster of
+same-day repeats. Every interval is floored at one day, so "Difficult" can never
+schedule a revision for the day it was just done.
+
+This is a single multiplier rather than a full SM-2 ease factor on purpose: the
+student can be told in one sentence why a topic came back sooner, which matters
+more here than a marginally better retention curve.
+
+Two deliberate refusals to lose work:
+
+- **Overdue revisions never expire.** A missed revision is exactly the thing the
+  student most needs back, so it stays in the due list and reports how late it is.
+- **Skip reschedules to tomorrow rather than deleting.** A skipped revision that
+  vanished would quietly shorten the ladder.
+
+Rating the **final** stage Difficult earns one more pass instead of graduating
+the topic — finishing on the student's weakest note would be the wrong signal.
+Only when nothing is left pending does the topic become **Well revised**.
+
+### Dates are calendar days, not elapsed hours
+
+A revision due "tomorrow" means the student's tomorrow. Every scheduled date is
+stored as UTC midnight of the target calendar day and compared against the
+student's local day (`user.timezone`, default `Asia/Kolkata`). Storing a
+wall-clock instant would make revisions arrive on the wrong side of midnight for
+anyone east of UTC, which is everyone this app is built for.
+
+### Endpoints
+
+| Method | Route | Purpose |
+|--------|-------|---------|
+| GET | `/api/revisions/due` | Due today or overdue, across exams |
+| GET | `/api/exams/:examId/revisions/upcoming` | Workload for the next N days |
+| POST | `/api/revisions/:id/complete` | Record a verdict and reschedule |
+| POST | `/api/revisions/:id/skip` | Push to tomorrow |
 
 ## Progress model
 
