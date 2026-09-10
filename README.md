@@ -66,7 +66,7 @@ trio, so each phase adds a folder rather than editing shared files.
 | 2 | Exam creation, syllabus tree, subject/topic CRUD, templates | ✅ Done |
 | 3 | Four-state progress tracking and dashboard rollups | ✅ Done |
 | 4 | Adaptive revision engine (1 → 3 → 7 → 15 → 30 days) | ✅ Done |
-| 5 | Focus timer that logs sessions against topics | |
+| 5 | Focus timer that logs sessions against topics | ✅ Done |
 | 6 | Priority scoring — "your next 3 priorities" | |
 | 7 | Daily planner, mock test tracker, analytics | |
 | 8 | Topic notes, file uploads, AI planner and note generation | |
@@ -229,6 +229,47 @@ otherwise split a shared subject in two.
 > On Render's free tier the OCR language data is re-downloaded after a cold
 > start, because the disk is ephemeral. The first image upload after the service
 > wakes is therefore slower than later ones. PDFs are unaffected.
+
+## Study timer
+
+A session is a **server-side record**, not a browser timer. `POST /api/sessions`
+stores `startedAt`; the page derives the countdown from it. Closing the tab or
+reloading mid-session therefore loses nothing - `GET /api/sessions/active`
+recovers it. A purely client-side timer would throw away forty minutes of work
+on an accidental refresh.
+
+Only one session can run at a time; starting a second returns 409 rather than
+silently orphaning the first.
+
+### Why the recorded duration is negotiated
+
+The client reports the seconds it counted as focused, excluding pauses and
+breaks. The server records `min(reported, actualElapsed, 6 hours)`.
+
+That combination is deliberate. Trusting the client alone would make the figure
+trivially inflatable. Trusting wall-clock elapsed alone would count a laptop
+left open overnight as ten hours of study and poison every analytic built on it.
+So the client can only ever revise the number **down** from real elapsed time,
+and a forgotten session is capped rather than believed.
+
+Pause and break state is intentionally client-local: it is lost on reload, and
+the timer then resumes from true elapsed time. Persisting it would mean trusting
+a client-reported pause across a session the server cannot observe.
+
+### The link that makes it worth having
+
+Finishing a session asks **"did you complete this topic?"**, and the answer
+drives the rest of the app:
+
+| Answer | Effect |
+|--------|--------|
+| Yes | Topic marked complete **and its five revisions seeded**, exactly as marking it complete in the syllabus does |
+| Partially / Not yet | A `NOT_STARTED` topic becomes `Learning`; an already-finished topic is never demoted |
+| (any) | Minutes added to `totalStudyMinutes`, `lastStudiedAt` stamped |
+
+That is what separates this from a stopwatch: measured time lands on the
+syllabus, and finishing a topic starts its revision ladder without a second
+trip to another screen.
 
 ## Revision engine
 

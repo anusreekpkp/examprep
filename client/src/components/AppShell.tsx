@@ -9,6 +9,7 @@ const navItems = [
   { to: '/dashboard', label: 'Dashboard' },
   { to: '/exams', label: 'Exams' },
   { to: '/revisions', label: 'Revisions' },
+  { to: '/timer', label: 'Timer' },
 ];
 
 export function AppShell({ children }: { children: ReactNode }) {

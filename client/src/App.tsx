@@ -11,6 +11,7 @@ import ExamsPage from '@/pages/ExamsPage';
 import ExamNewPage from '@/pages/ExamNewPage';
 import SyllabusPage from '@/pages/SyllabusPage';
 import RevisionsPage from '@/pages/RevisionsPage';
+import TimerPage from '@/pages/TimerPage';
 
 export default function App() {
   const bootstrap = useAuthStore((s) => s.bootstrap);
@@ -64,6 +65,15 @@ export default function App() {
         element={
           <ProtectedRoute>
             <RevisionsPage />
+          </ProtectedRoute>
+        }
+      />
+
+      <Route
+        path="/timer"
+        element={
+          <ProtectedRoute>
+            <TimerPage />
           </ProtectedRoute>
         }
       />

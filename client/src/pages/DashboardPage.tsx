@@ -14,7 +14,7 @@ const phases = [
   { id: 2, name: 'Exams & syllabus tree', detail: 'Subject → topic hierarchy, templates, manual editing', done: true },
   { id: 3, name: 'Progress tracking', detail: 'Four-state topic status, rollup percentages, dashboard', done: true },
   { id: 4, name: 'Revision engine', detail: 'Spaced repetition with Easy / Moderate / Difficult feedback', done: true },
-  { id: 5, name: 'Study timer', detail: 'Focus sessions logged against a specific topic', done: false },
+  { id: 5, name: 'Study timer', detail: 'Focus sessions logged against a specific topic', done: true },
   { id: 6, name: 'Priority engine', detail: '"What should I study next?" scoring across every topic', done: false },
   { id: 7, name: 'Planner, mocks & analytics', detail: 'Daily plans, mock test tracker, weekly reports', done: false },
   { id: 8, name: 'Notes & AI layer', detail: 'Topic notes, AI planner, note and question generation', done: false },
