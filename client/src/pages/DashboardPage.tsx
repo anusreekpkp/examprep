@@ -4,6 +4,7 @@ import { Alert, Button, Card } from '@/components/ui';
 import { useAuthStore } from '@/stores/authStore';
 import { useExamProgress, useExams } from '@/hooks/useSyllabus';
 import { useDueRevisions } from '@/hooks/useRevisions';
+import { usePriorities } from '@/hooks/usePriorities';
 import { formatMinutes } from '@/lib/syllabus';
 import { ProgressSummary } from '@/components/ProgressSummary';
 import { extractErrorMessage } from '@/lib/api';
@@ -15,7 +16,7 @@ const phases = [
   { id: 3, name: 'Progress tracking', detail: 'Four-state topic status, rollup percentages, dashboard', done: true },
   { id: 4, name: 'Revision engine', detail: 'Spaced repetition with Easy / Moderate / Difficult feedback', done: true },
   { id: 5, name: 'Study timer', detail: 'Focus sessions logged against a specific topic', done: true },
-  { id: 6, name: 'Priority engine', detail: '"What should I study next?" scoring across every topic', done: false },
+  { id: 6, name: 'Priority engine', detail: '"What should I study next?" scoring across every topic', done: true },
   { id: 7, name: 'Planner, mocks & analytics', detail: 'Daily plans, mock test tracker, weekly reports', done: false },
   { id: 8, name: 'Notes & AI layer', detail: 'Topic notes, AI planner, note and question generation', done: false },
 ];
@@ -31,6 +32,7 @@ export default function DashboardPage() {
   // Only the nearest exam gets a full progress breakdown; the rest stay a list.
   const { data: progress } = useExamProgress(nextExam?.id);
   const { data: due } = useDueRevisions();
+  const { data: priorities } = usePriorities(undefined, 3);
 
   return (
     <AppShell>
@@ -108,6 +110,32 @@ export default function DashboardPage() {
           </div>
           <Link to="/revisions" className="mt-4 inline-block">
             <Button>Start revising</Button>
+          </Link>
+        </Card>
+      )}
+
+      {priorities && priorities.topics.length > 0 && (
+        <Card className="mt-4">
+          <div className="flex flex-wrap items-baseline justify-between gap-2">
+            <h2 className="font-medium">Your next priorities</h2>
+            <Link to="/priorities" className="text-sm text-brand-600 hover:underline">
+              See all {priorities.count} ranked →
+            </Link>
+          </div>
+          <ol className="mt-3 space-y-2">
+            {priorities.topics.map((entry, index) => (
+              <li key={entry.topic.id} className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
+                <span className="w-5 shrink-0 text-sm font-semibold text-slate-400 tabular-nums">
+                  {index + 1}
+                </span>
+                <span className="font-medium">{entry.topic.name}</span>
+                <span className="text-sm text-slate-500">{entry.reasons.join(' + ')}</span>
+                <span className="ml-auto text-sm tabular-nums text-brand-600">{entry.score}</span>
+              </li>
+            ))}
+          </ol>
+          <Link to="/timer" className="mt-4 inline-block">
+            <Button variant="ghost">Start a session on one of these</Button>
           </Link>
         </Card>
       )}

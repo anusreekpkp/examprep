@@ -12,6 +12,7 @@ import ExamNewPage from '@/pages/ExamNewPage';
 import SyllabusPage from '@/pages/SyllabusPage';
 import RevisionsPage from '@/pages/RevisionsPage';
 import TimerPage from '@/pages/TimerPage';
+import PrioritiesPage from '@/pages/PrioritiesPage';
 
 export default function App() {
   const bootstrap = useAuthStore((s) => s.bootstrap);
@@ -74,6 +75,15 @@ export default function App() {
         element={
           <ProtectedRoute>
             <TimerPage />
+          </ProtectedRoute>
+        }
+      />
+
+      <Route
+        path="/priorities"
+        element={
+          <ProtectedRoute>
+            <PrioritiesPage />
           </ProtectedRoute>
         }
       />

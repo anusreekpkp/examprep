@@ -8,6 +8,7 @@ import { Button } from '@/components/ui';
 const navItems = [
   { to: '/dashboard', label: 'Dashboard' },
   { to: '/exams', label: 'Exams' },
+  { to: '/priorities', label: 'Next up' },
   { to: '/revisions', label: 'Revisions' },
   { to: '/timer', label: 'Timer' },
 ];

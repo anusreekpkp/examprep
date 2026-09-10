@@ -230,6 +230,61 @@ otherwise split a shared subject in two.
 > start, because the disk is ephemeral. The first image upload after the service
 > wakes is therefore slower than later ones. PDFs are unaffected.
 
+## Priority engine
+
+The feature the whole project is built around: instead of leaving a student to
+choose from two hundred topics, every topic is scored out of 100 and the top
+few are surfaced as **"what to study next"**.
+
+Six components, weighted to sum to exactly 100 so a score reads as a percentage
+and no single signal can quietly dominate:
+
+| Component | Max | What it measures |
+|-----------|-----|------------------|
+| Revision overdue | 28 | Days past due on the earliest pending revision |
+| Still to cover | 20 | How far the topic is from finished |
+| Difficulty | 18 | Marked difficult, or hours sunk well past its estimate |
+| Subject weight | 18 | The subject's share of the paper |
+| Exam proximity | 10 | How close the exam is |
+| Your flags | 6 | Starred and frequently-asked |
+
+Then a **recency penalty** of up to 20 is subtracted for anything studied in the
+last four days, which is what stops the same topic being recommended three days
+running.
+
+### Three decisions that came out of testing, not design
+
+- **Revision debt outranks coverage.** With both ceilings at 24 a week-overdue
+  revision sank below eleven interchangeable "not started" topics. An untouched
+  topic earns full coverage points for free and is one of dozens of equivalent
+  options; an overdue revision is knowledge already paid for and now being lost.
+- **The recency penalty does not apply while a revision is due.** Recency exists
+  to stop repeated *new study* of one topic; a due revision is a different
+  action, and spaced repetition exists precisely to return to something studied
+  recently. Without the exemption the ladder's own decision got buried.
+- **Only leaf topics are ranked.** A parent like "Discrete Mathematics" with
+  sub-topics is a heading, not a study action - recommending it would leave the
+  student wondering which part to open.
+
+### Reasons have to be true
+
+Each row carries the two strongest components as plain words, and a component is
+only allowed to speak when it has evidence:
+
+- `weakness` says "marked difficult" only when the topic really is - `MODERATE`
+  is the default every topic starts on, so treating it as evidence would label
+  everything difficult. An over-run topic says "taking longer than estimated".
+- `examWeight` says "high-scoring subject" only above 35% weightage. Calling a
+  15%-weight subject high-scoring is simply false.
+- `coverageGap` stays silent when a revision is due, because "not started"
+  about a completed topic is untrue.
+- `deadlinePressure` never appears: it is identical for every topic in an exam,
+  so it explains nothing about why *this* one was picked.
+
+The scoring is deterministic and hand-tunable on purpose. A trained model would
+score better on paper and be impossible to explain to a student - or an examiner
+- which is the wrong trade for a tool whose value is telling you **why**.
+
 ## Study timer
 
 A session is a **server-side record**, not a browser timer. `POST /api/sessions`
