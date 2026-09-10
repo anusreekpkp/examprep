@@ -4,6 +4,8 @@ import { AppShell } from '@/components/AppShell';
 import { Alert, Button, Card } from '@/components/ui';
 import { SubjectCard } from '@/components/syllabus/SubjectCard';
 import { InlineForm } from '@/components/syllabus/InlineForm';
+import { ImportSyllabusDialog } from '@/components/syllabus/ImportSyllabusDialog';
+import { PastImports } from '@/components/syllabus/PastImports';
 import { extractErrorMessage } from '@/lib/api';
 import {
   formatMinutes,
@@ -28,6 +30,8 @@ export default function SyllabusPage() {
   const { examId } = useParams<{ examId: string }>();
   const { data, isPending, isError, error } = useExamTree(examId);
   const [isAddingSubject, setIsAddingSubject] = useState(false);
+  const [isImporting, setIsImporting] = useState(false);
+  const [importSummary, setImportSummary] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
 
   const id = examId ?? '';
@@ -231,7 +235,28 @@ export default function SyllabusPage() {
         ))}
       </div>
 
-      <div className="mt-4">
+      {importSummary && (
+        <p className="mt-4 rounded-lg bg-emerald-50 px-3 py-2 text-sm text-emerald-800 dark:bg-emerald-950/50 dark:text-emerald-200">
+          {importSummary}
+        </p>
+      )}
+
+      {isImporting && (
+        <div className="mt-4">
+          <ImportSyllabusDialog
+            examId={id}
+            onClose={() => setIsImporting(false)}
+            onImported={(summary) => {
+              setIsImporting(false);
+              setImportSummary(
+                `Imported ${summary.subjectsCreated} subject${summary.subjectsCreated === 1 ? '' : 's'} and ${summary.topicsCreated} topic${summary.topicsCreated === 1 ? '' : 's'}.`,
+              );
+            }}
+          />
+        </div>
+      )}
+
+      <div className="mt-4 flex flex-wrap gap-2">
         {isAddingSubject ? (
           <Card className="p-4">
             <InlineForm
@@ -248,11 +273,20 @@ export default function SyllabusPage() {
             />
           </Card>
         ) : (
-          <Button variant="ghost" onClick={() => setIsAddingSubject(true)}>
-            + Add subject
-          </Button>
+          <>
+            <Button variant="ghost" onClick={() => setIsAddingSubject(true)}>
+              + Add subject
+            </Button>
+            {!isImporting && (
+              <Button variant="ghost" onClick={() => setIsImporting(true)}>
+                Upload syllabus PDF or image
+              </Button>
+            )}
+          </>
         )}
       </div>
+
+      <PastImports examId={id} />
     </AppShell>
   );
 }

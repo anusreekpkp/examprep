@@ -174,6 +174,43 @@ Topic `status` is deliberately **not** patchable here. Marking a topic complete
 has to seed the revision ladder, so that gets its own endpoint in Phase 4
 instead of riding along on a generic update.
 
+## Syllabus upload
+
+A third way to build a syllabus, alongside the templates and manual entry:
+upload the exam board's PDF, or a photo of a printed syllabus.
+
+**The file is never stored.** Render's free filesystem is recreated on every
+deploy, so a saved upload would vanish without warning. The upload is parsed in
+memory with `multer.memoryStorage()` and discarded; what persists is the
+**extracted text**, in `syllabus_imports`. That is the part with lasting value -
+it can be re-parsed, searched, or handed to the AI layer in Phase 8 without
+asking the student to upload the file again.
+
+| Input | How text is recovered |
+|-------|----------------------|
+| PDF with a text layer | `unpdf`, instant |
+| PNG / JPEG / WebP | `tesseract.js` OCR, a few seconds |
+| Scanned PDF | Rejected with a message telling the student to photograph the page instead - a scan is an image wrapped in a PDF and has no text to read |
+
+`parseSyllabus` then proposes a subject/topic tree. Real syllabus documents are
+wildly inconsistent, so the rules are heuristics and the student **always
+reviews the result before anything is written**:
+
+1. `Subject: a, b, c` on one line becomes a subject with three topics.
+2. A bulleted or numbered line is a topic under the current heading.
+3. An unbulleted line is a heading if it is ALL CAPS, starts with a word like
+   "Paper" or "Unit", ends in a colon, or is followed by a bulleted line.
+4. Page furniture (`Page 2 of 5`, dotted contents leaders) is discarded, and
+   anything the parser could not place is reported rather than silently dropped.
+
+Applying an import **merges subjects by name**, case-insensitively, and skips
+topics that already exist. Importing Paper 1 and Paper 2 separately would
+otherwise split a shared subject in two.
+
+> On Render's free tier the OCR language data is re-downloaded after a cold
+> start, because the disk is ephemeral. The first image upload after the service
+> wakes is therefore slower than later ones. PDFs are unaffected.
+
 ## Progress model
 
 Topic status is deliberately **not** binary. Each state carries partial credit:

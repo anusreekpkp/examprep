@@ -9,6 +9,7 @@ import { apiLimiter } from './middleware/rateLimit.js';
 import { healthRouter } from './modules/health/health.routes.js';
 import { authRouter } from './modules/auth/auth.routes.js';
 import { syllabusRouter } from './modules/syllabus/syllabus.routes.js';
+import { importRouter } from './modules/import/import.routes.js';
 
 export function createApp() {
   const app = express();
@@ -39,6 +40,7 @@ export function createApp() {
   app.use('/api', apiLimiter);
   app.use('/api/auth', authRouter);
   app.use('/api', syllabusRouter);
+  app.use('/api', importRouter);
 
   app.use(notFoundHandler);
   app.use(errorHandler);

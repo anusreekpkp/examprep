@@ -1,5 +1,6 @@
 import type { NextFunction, Request, Response } from 'express';
 import { ZodError } from 'zod';
+import { MulterError } from 'multer';
 import { ApiError } from '../utils/ApiError.js';
 import { isProduction } from '../config/env.js';
 
@@ -15,6 +16,17 @@ export function errorHandler(err: unknown, _req: Request, res: Response, _next: 
       message: 'Validation failed',
       details: err.issues.map((i) => ({ field: i.path.join('.'), message: i.message })),
     });
+    return;
+  }
+
+  if (err instanceof MulterError) {
+    const message =
+      err.code === 'LIMIT_FILE_SIZE'
+        ? 'That file is larger than the 10 MB limit'
+        : err.code === 'LIMIT_FILE_COUNT'
+          ? 'Upload one file at a time'
+          : `Upload failed: ${err.message}`;
+    res.status(400).json({ success: false, message });
     return;
   }
 

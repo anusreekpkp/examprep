@@ -140,6 +140,7 @@ model Exam {
   subjects   Subject[]
   mockTests  MockTest[]
   studyPlans StudyPlan[]
+  imports    SyllabusImport[]
 
   @@index([userId])
   @@map("exams")
@@ -389,6 +390,40 @@ model StudyPlanItem {
   @@index([studyPlanId])
   @@index([topicId])
   @@map("study_plan_items")
+}
+
+// ---------------------------------------------------------------- imports --
+
+/// A syllabus PDF or image the student uploaded. The FILE is never kept - it is
+/// parsed in memory and discarded, because Render's free disk is wiped on every
+/// deploy and would silently lose it. What persists is the extracted text, which
+/// is the part with lasting value: it can be re-parsed, searched, or handed to
+/// the AI layer in Phase 8 without asking the student to upload again.
+model SyllabusImport {
+  id     String @id @default(cuid())
+  examId String
+
+  fileName  String
+  mimeType  String
+  sizeBytes Int
+  /// How the text was recovered: PDF_TEXT (embedded text layer) or IMAGE_OCR.
+  source    String
+
+  extractedText String
+  /// Characters recovered, denormalised so listings need not load the whole text.
+  characterCount Int @default(0)
+
+  /// Null until the student applies the parsed tree to the syllabus.
+  appliedAt       DateTime?
+  subjectsCreated Int       @default(0)
+  topicsCreated   Int       @default(0)
+
+  createdAt DateTime @default(now())
+
+  exam Exam @relation(fields: [examId], references: [id], onDelete: Cascade)
+
+  @@index([examId])
+  @@map("syllabus_imports")
 }
 
 // -------------------------------------------------------------- templates --
