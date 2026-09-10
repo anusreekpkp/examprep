@@ -37,10 +37,10 @@ services:
         sync: false
 
   # ------------------------------------------------------------- CLIENT ----
+  # Static sites have no plan field - Render always serves them free.
   - type: web
     name: examprep-web
     runtime: static
-    plan: free
     rootDir: .
     buildCommand: npm ci && npm run build:client
     staticPublishPath: client/dist
