@@ -1,4 +1,4 @@
-import type { ButtonHTMLAttributes, InputHTMLAttributes, ReactNode } from 'react';
+import type { ButtonHTMLAttributes, ComponentProps, ReactNode } from 'react';
 import { clsx } from 'clsx';
 
 export function Card({ children, className }: { children: ReactNode; className?: string }) {
@@ -45,7 +45,9 @@ export function Input({
   className,
   hasError,
   ...props
-}: InputHTMLAttributes<HTMLInputElement> & { hasError?: boolean }) {
+  // ComponentProps rather than InputHTMLAttributes so `ref` is typed; React 19
+  // passes it as an ordinary prop, so spreading it onto the input is enough.
+}: ComponentProps<'input'> & { hasError?: boolean }) {
   return (
     <input
       {...props}

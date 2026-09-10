@@ -63,7 +63,7 @@ trio, so each phase adds a folder rather than editing shared files.
 |-------|-------|--------|
 | 0 | Monorepo, TypeScript, Git, Render pipeline, health check | ✅ Done |
 | 1 | 14-model Prisma schema, JWT auth with refresh rotation, protected routes | ✅ Done |
-| 2 | Exam creation, syllabus tree, subject/topic CRUD, templates | |
+| 2 | Exam creation, syllabus tree, subject/topic CRUD, templates | ✅ Done |
 | 3 | Four-state progress tracking and dashboard rollups | |
 | 4 | Adaptive revision engine (1 → 3 → 7 → 15 → 30 days) | |
 | 5 | Focus timer that logs sessions against topics | |
@@ -135,6 +135,44 @@ The Vite dev server proxies `/api` to port 4000, so there is no CORS setup in de
 | `npm run db:studio` | Opens Prisma Studio to browse the database |
 
 ---
+
+## Syllabus model
+
+`exam -> subject -> topic`, where **topics nest into themselves** via
+`parentTopicId`, so a syllabus can go Subject → Topic → Sub-topic to any depth
+without a second table. Progress fields live on the topic row rather than a join
+table, because a topic already belongs to exactly one user through its exam.
+
+Prisma cannot express an arbitrary-depth self-relation in one query, so
+`getExamTree` fetches a subject's topics **flat** and nests them in JavaScript.
+One round trip, and depth-agnostic.
+
+### Ownership
+
+Every syllabus route runs through `assertExamOwned` / `assertSubjectOwned` /
+`assertTopicOwned` in `server/src/utils/ownership.ts`, which re-derive the owner
+by walking back to `exam.userId`. They return **404, not 403**, for a row owned
+by someone else: a 403 would confirm the id exists and leak the shape of other
+students' data.
+
+### Endpoints
+
+| Method | Route | Purpose |
+|--------|-------|---------|
+| GET | `/api/templates` | Built-in syllabi with subject/topic counts |
+| GET | `/api/exams` | Exam list with countdown and counts |
+| POST | `/api/exams` | Create, optionally cloning a template |
+| GET | `/api/exams/:examId` | Full subject/topic tree plus status stats |
+| PATCH / DELETE | `/api/exams/:examId` | Update or delete an exam |
+| POST | `/api/exams/:examId/subjects` | Add a subject |
+| POST | `/api/exams/:examId/subjects/reorder` | Reorder subjects |
+| PATCH / DELETE | `/api/subjects/:subjectId` | Update or delete a subject |
+| POST | `/api/subjects/:subjectId/topics` | Add a topic or sub-topic |
+| PATCH / DELETE | `/api/topics/:topicId` | Update or delete a topic |
+
+Topic `status` is deliberately **not** patchable here. Marking a topic complete
+has to seed the revision ladder, so that gets its own endpoint in Phase 4
+instead of riding along on a generic update.
 
 ## Authentication design
 
