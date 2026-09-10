@@ -77,6 +77,10 @@ export async function fetchImports(examId: string): Promise<SyllabusImportRecord
   return data.data.imports;
 }
 
+export async function deleteImport(importId: string): Promise<void> {
+  await api.delete(`/api/syllabus-imports/${importId}`);
+}
+
 export async function fetchImportText(importId: string): Promise<StoredImport> {
   const { data } = await api.get<Envelope<{ import: StoredImport }>>(
     `/api/syllabus-imports/${importId}`,
