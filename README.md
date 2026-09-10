@@ -62,7 +62,7 @@ trio, so each phase adds a folder rather than editing shared files.
 | Phase | Scope | Status |
 |-------|-------|--------|
 | 0 | Monorepo, TypeScript, Git, Render pipeline, health check | ✅ Done |
-| 1 | Full Prisma schema, JWT auth, protected routes | Next |
+| 1 | 14-model Prisma schema, JWT auth with refresh rotation, protected routes | ✅ Done |
 | 2 | Exam creation, syllabus tree, subject/topic CRUD, templates | |
 | 3 | Four-state progress tracking and dashboard rollups | |
 | 4 | Adaptive revision engine (1 → 3 → 7 → 15 → 30 days) | |
@@ -111,6 +111,14 @@ bite anyone who upgrades casually.
 - The client is generated into `server/src/generated/prisma`, which is
   gitignored and recreated by `prisma generate` on every build.
 
+### Connection string
+
+Use Neon's **pooled** host (the one containing `-pooler`) and prefer
+`sslmode=verify-full` over Neon's default `sslmode=require`. With `node-postgres`
+today both verify the certificate, but `pg` v9 will redefine `require` to the
+weaker libpq meaning, which skips verification. `verify-full` is explicit and
+already verified to work against Neon.
+
 - API → http://localhost:4000 (health check at `/api/health`)
 - Web → http://localhost:5173
 
@@ -127,6 +135,40 @@ The Vite dev server proxies `/api` to port 4000, so there is no CORS setup in de
 | `npm run db:studio` | Opens Prisma Studio to browse the database |
 
 ---
+
+## Authentication design
+
+Worth understanding before Phase 2 builds on it.
+
+- **Access token** - a JWT, 7 day expiry, returned in the response body and held
+  only in memory on the client. Never written to `localStorage`, which any
+  injected script can read.
+- **Refresh token** - an opaque 48-byte random string, not a JWT, because it has
+  to be revocable. Only its SHA-256 hash is stored, so a database leak yields no
+  usable tokens. It travels in an `httpOnly` cookie scoped to `/api/auth`.
+- **Rotation with reuse detection** - every refresh issues a new token and
+  revokes the old one. Tokens from one login share a `familyId`; presenting an
+  already-rotated token means a replay or a stolen cookie, so the whole family is
+  revoked and every device has to sign in again.
+- **Timing-safe login** - a bcrypt comparison runs even when the email does not
+  exist, so response time cannot be used to enumerate registered accounts.
+- **Rate limiting** - credential endpoints allow 10 attempts per 15 minutes in
+  production, which stops the login route being an open guessing oracle.
+
+In production the API and the web app are separate `onrender.com` hosts. Because
+`onrender.com` is on the Public Suffix List those count as different sites, so
+the refresh cookie is issued with `SameSite=None; Secure`.
+
+### Endpoints
+
+| Method | Route | Auth | Purpose |
+|--------|-------|------|---------|
+| POST | `/api/auth/register` | - | Create an account, returns tokens |
+| POST | `/api/auth/login` | - | Sign in |
+| POST | `/api/auth/refresh` | cookie | Rotate tokens, get a new access token |
+| POST | `/api/auth/logout` | cookie | Revoke the whole token family |
+| GET | `/api/auth/me` | bearer | Current profile |
+| PATCH | `/api/auth/me` | bearer | Update name / timezone |
 
 ## Deploying to Render
 

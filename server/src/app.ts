@@ -5,12 +5,15 @@ import morgan from 'morgan';
 import cookieParser from 'cookie-parser';
 import { corsOrigins, isProduction } from './config/env.js';
 import { errorHandler, notFoundHandler } from './middleware/errorHandler.js';
+import { apiLimiter } from './middleware/rateLimit.js';
 import { healthRouter } from './modules/health/health.routes.js';
+import { authRouter } from './modules/auth/auth.routes.js';
 
 export function createApp() {
   const app = express();
 
-  // Render terminates TLS upstream; without this req.secure and rate-limit IPs are wrong.
+  // Render terminates TLS upstream; without this req.secure, req.ip and the
+  // rate limiter's client identification are all wrong.
   app.set('trust proxy', 1);
 
   app.use(helmet());
@@ -29,7 +32,11 @@ export function createApp() {
   app.use(cookieParser());
   app.use(morgan(isProduction ? 'combined' : 'dev'));
 
+  // Health stays outside the limiter so Render's probe can never be throttled.
   app.use('/api/health', healthRouter);
+
+  app.use('/api', apiLimiter);
+  app.use('/api/auth', authRouter);
 
   app.use(notFoundHandler);
   app.use(errorHandler);

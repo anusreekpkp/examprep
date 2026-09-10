@@ -1,12 +1,15 @@
+// ---------------------------------------------------------------------------
 // Competitive Exam Preparation & Revision Management System
-// Phase 0: minimal User model so `prisma generate` and the build succeed.
-// Phase 1 expands this into the full exam / syllabus / revision domain.
+//
+// The whole domain lives here so the ER diagram is complete from Phase 1 on.
+// Later phases add endpoints against these tables rather than reshaping them.
+// ---------------------------------------------------------------------------
 
 generator client {
-  provider        = "prisma-client"
-  output          = "../src/generated/prisma"
-  moduleFormat    = "esm"
-  runtime         = "nodejs"
+  provider     = "prisma-client"
+  output       = "../src/generated/prisma"
+  moduleFormat = "esm"
+  runtime      = "nodejs"
 }
 
 // Prisma 7 keeps connection URLs out of the schema; see prisma.config.ts.
@@ -14,13 +17,391 @@ datasource db {
   provider = "postgresql"
 }
 
+// ------------------------------------------------------------------ enums --
+
+/// The four-state lifecycle every topic moves through.
+enum TopicStatus {
+  NOT_STARTED
+  LEARNING
+  COMPLETED_REVISION_DUE
+  WELL_REVISED
+}
+
+/// Self-reported difficulty, captured after a revision to drive the next interval.
+enum Difficulty {
+  EASY
+  MODERATE
+  DIFFICULT
+}
+
+enum RevisionStatus {
+  PENDING
+  COMPLETED
+  SKIPPED
+}
+
+enum SessionType {
+  NEW_TOPIC
+  PRACTICE
+  REVISION
+  MOCK_TEST
+  OTHER
+}
+
+/// Answer to "did you finish the topic?" at the end of a focus session.
+enum CompletionStatus {
+  YES
+  PARTIAL
+  NO
+}
+
+enum NoteType {
+  FORMULA
+  PERSONAL
+  QUESTION
+  SUMMARY
+  LINK
+}
+
+enum PlanItemActivity {
+  NEW_TOPIC
+  PRACTICE
+  REVISION
+  MOCK_TEST
+  BREAK
+}
+
+enum PlanItemStatus {
+  PENDING
+  COMPLETED
+  SKIPPED
+}
+
+// ------------------------------------------------------------------- user --
+
 model User {
   id           String   @id @default(cuid())
   email        String   @unique
   passwordHash String
   name         String
+  /// IANA zone, e.g. "Asia/Kolkata". Streaks and the meaning of "today" depend on it.
+  timezone     String   @default("Asia/Kolkata")
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
+  refreshTokens RefreshToken[]
+  exams         Exam[]
+  studySessions StudySession[]
+  mockTests     MockTest[]
+  notes         Note[]
+  studyPlans    StudyPlan[]
+
   @@map("users")
+}
+
+/// Refresh tokens are stored hashed and rotated on every use, so a stolen token
+/// is detectable: presenting an already-rotated token revokes the whole family.
+model RefreshToken {
+  id        String    @id @default(cuid())
+  userId    String
+  tokenHash String    @unique
+  /// Groups every token descended from one login, so reuse can revoke them all.
+  familyId  String
+  expiresAt DateTime
+  revokedAt DateTime?
+  createdAt DateTime  @default(now())
+  userAgent String?
+  ipAddress String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([familyId])
+  @@index([expiresAt])
+  @@map("refresh_tokens")
+}
+
+// ------------------------------------------------------------------- exam --
+
+model Exam {
+  id     String @id @default(cuid())
+  userId String
+
+  name     String
+  examDate DateTime
+  /// Minutes the student expects to study on an average day.
+  dailyAvailableMinutes Int     @default(300)
+  isActive              Boolean @default(true)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user       User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  subjects   Subject[]
+  mockTests  MockTest[]
+  studyPlans StudyPlan[]
+
+  @@index([userId])
+  @@map("exams")
+}
+
+model Subject {
+  id         String   @id @default(cuid())
+  examId     String
+  name       String
+  orderIndex Int      @default(0)
+  /// Share of the paper this subject carries, used by the priority engine.
+  weightage  Int      @default(25)
+  colorHex   String?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  exam             Exam              @relation(fields: [examId], references: [id], onDelete: Cascade)
+  topics           Topic[]
+  mockTestSections MockTestSection[]
+
+  @@index([examId])
+  @@map("subjects")
+}
+
+/// Topics are self-nesting so a syllabus can go Subject -> Topic -> Sub-topic
+/// without a second table. Progress lives here because a topic already belongs
+/// to exactly one user through its exam.
+model Topic {
+  id            String  @id @default(cuid())
+  subjectId     String
+  parentTopicId String?
+  name          String
+  orderIndex    Int     @default(0)
+
+  status     TopicStatus @default(NOT_STARTED)
+  difficulty Difficulty  @default(MODERATE)
+
+  /// Student-applied flags from the priority system.
+  isStarred         Boolean @default(false)
+  isFrequentlyAsked Boolean @default(false)
+
+  estimatedMinutes  Int @default(60)
+  totalStudyMinutes Int @default(0)
+
+  completedAt   DateTime?
+  lastStudiedAt DateTime?
+  lastRevisedAt DateTime?
+  /// How many revisions have been completed; selects the next interval.
+  revisionCount Int       @default(0)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  subject       Subject         @relation(fields: [subjectId], references: [id], onDelete: Cascade)
+  parentTopic   Topic?          @relation("TopicHierarchy", fields: [parentTopicId], references: [id], onDelete: Cascade)
+  childTopics   Topic[]         @relation("TopicHierarchy")
+  revisions     Revision[]
+  studySessions StudySession[]
+  notes         Note[]
+  planItems     StudyPlanItem[]
+
+  @@index([subjectId])
+  @@index([parentTopicId])
+  @@index([status])
+  @@map("topics")
+}
+
+// --------------------------------------------------------------- revision --
+
+/// One scheduled repetition. Completing a topic seeds the whole ladder; the
+/// difficulty reported on completion shifts the remaining dates.
+model Revision {
+  id           String         @id @default(cuid())
+  topicId      String
+  /// 1-based position in the interval ladder (1, 3, 7, 15, 30 days).
+  stage        Int
+  scheduledFor DateTime
+  status       RevisionStatus @default(PENDING)
+  completedAt  DateTime?
+  feedback     Difficulty?
+  createdAt    DateTime       @default(now())
+  updatedAt    DateTime       @updatedAt
+
+  topic Topic @relation(fields: [topicId], references: [id], onDelete: Cascade)
+
+  @@index([topicId])
+  @@index([scheduledFor, status])
+  @@map("revisions")
+}
+
+// ---------------------------------------------------------------- session --
+
+/// A focus session. Links measured time to a specific topic, which is what
+/// makes the analytics module meaningful rather than a generic stopwatch.
+model StudySession {
+  id      String  @id @default(cuid())
+  userId  String
+  topicId String?
+
+  sessionType     SessionType       @default(NEW_TOPIC)
+  startedAt       DateTime
+  endedAt         DateTime?
+  durationSeconds Int               @default(0)
+  breakSeconds    Int               @default(0)
+  plannedMinutes  Int?
+  completion      CompletionStatus?
+  notes           String?
+
+  createdAt DateTime @default(now())
+
+  user  User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  topic Topic? @relation(fields: [topicId], references: [id], onDelete: SetNull)
+
+  @@index([userId, startedAt])
+  @@index([topicId])
+  @@map("study_sessions")
+}
+
+// -------------------------------------------------------------- mock test --
+
+model MockTest {
+  id     String @id @default(cuid())
+  userId String
+  examId String
+
+  name            String
+  attemptNumber   Int?
+  takenAt         DateTime
+  durationMinutes Int?
+  totalMarks      Float
+  obtainedMarks   Float
+  notes           String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user     User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  exam     Exam              @relation(fields: [examId], references: [id], onDelete: Cascade)
+  sections MockTestSection[]
+
+  @@index([userId, takenAt])
+  @@index([examId])
+  @@map("mock_tests")
+}
+
+/// Per-subject breakdown of one mock test; this is what exposes a weak subject.
+model MockTestSection {
+  id         String  @id @default(cuid())
+  mockTestId String
+  subjectId  String?
+
+  name      String
+  attempted Int   @default(0)
+  correct   Int   @default(0)
+  incorrect Int   @default(0)
+  marks     Float @default(0)
+  maxMarks  Float @default(0)
+
+  mockTest MockTest @relation(fields: [mockTestId], references: [id], onDelete: Cascade)
+  subject  Subject? @relation(fields: [subjectId], references: [id], onDelete: SetNull)
+
+  @@index([mockTestId])
+  @@index([subjectId])
+  @@map("mock_test_sections")
+}
+
+// ------------------------------------------------------------------ notes --
+
+model Note {
+  id      String @id @default(cuid())
+  userId  String
+  topicId String
+
+  type     NoteType @default(PERSONAL)
+  title    String
+  /// Markdown body.
+  content  String
+  isPinned Boolean  @default(false)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user        User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  topic       Topic            @relation(fields: [topicId], references: [id], onDelete: Cascade)
+  attachments NoteAttachment[]
+
+  @@index([topicId])
+  @@index([userId])
+  @@map("notes")
+}
+
+model NoteAttachment {
+  id        String   @id @default(cuid())
+  noteId    String
+  fileName  String
+  fileUrl   String
+  mimeType  String
+  sizeBytes Int
+  createdAt DateTime @default(now())
+
+  note Note @relation(fields: [noteId], references: [id], onDelete: Cascade)
+
+  @@index([noteId])
+  @@map("note_attachments")
+}
+
+// ------------------------------------------------------------------ plans --
+
+/// A generated day plan. Kept as rows rather than recomputed on the fly so the
+/// student can tick items off and so yesterday's plan stays auditable.
+model StudyPlan {
+  id     String @id @default(cuid())
+  userId String
+  examId String
+
+  planDate      DateTime
+  totalMinutes  Int      @default(0)
+  isAiGenerated Boolean  @default(false)
+  generatedAt   DateTime @default(now())
+
+  user  User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  exam  Exam            @relation(fields: [examId], references: [id], onDelete: Cascade)
+  items StudyPlanItem[]
+
+  @@unique([userId, examId, planDate])
+  @@index([userId, planDate])
+  @@map("study_plans")
+}
+
+model StudyPlanItem {
+  id          String  @id @default(cuid())
+  studyPlanId String
+  topicId     String?
+
+  activity         PlanItemActivity @default(NEW_TOPIC)
+  orderIndex       Int              @default(0)
+  /// Minutes since midnight, so a plan is timezone-agnostic until rendered.
+  startMinuteOfDay Int
+  durationMinutes  Int
+  status           PlanItemStatus   @default(PENDING)
+  /// Score from the priority engine at generation time, for explainability.
+  priorityScore    Float?
+
+  studyPlan StudyPlan @relation(fields: [studyPlanId], references: [id], onDelete: Cascade)
+  topic     Topic?    @relation(fields: [topicId], references: [id], onDelete: SetNull)
+
+  @@index([studyPlanId])
+  @@index([topicId])
+  @@map("study_plan_items")
+}
+
+// -------------------------------------------------------------- templates --
+
+/// Shared, non-user-owned starting syllabi (SSC CGL, UPSC Prelims, ...).
+/// `structure` holds the subject/topic tree that Phase 2 clones into a new exam.
+model SyllabusTemplate {
+  id          String   @id @default(cuid())
+  examName    String   @unique
+  description String?
+  structure   Json
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@map("syllabus_templates")
 }
