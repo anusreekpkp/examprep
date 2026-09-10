@@ -185,3 +185,12 @@ start command, so schema changes ship with the code that needs them.
 
 > The Render free tier spins the API down after 15 minutes of inactivity. The first
 > request afterwards takes ~30 seconds. Worth mentioning before a live demo.
+
+### Why the build command carries `--include=dev`
+
+The API sets `NODE_ENV=production`, and Render applies service environment
+variables during the **build** as well as at runtime. npm reads `NODE_ENV` and
+silently switches to `--omit=dev`, which strips 183 packages here - `typescript`,
+`prisma`, `tsx` and `vite` among them - so `npm ci && npm run build` fails with
+missing binaries. `npm ci --include=dev` restores them. Keep the flag if you ever
+rewrite these commands.
