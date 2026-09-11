@@ -35,6 +35,8 @@ export interface ImportResult {
 
 export interface StoredImport extends SyllabusImportRecord {
   extractedText: string;
+  /** Re-parsed from the stored text on every read, so an old upload can be resumed. */
+  preview: { subjects: ParsedSubject[]; unmatchedLines: string[] };
 }
 
 interface Envelope<T> {

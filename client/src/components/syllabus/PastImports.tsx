@@ -9,7 +9,14 @@ import { deleteImport, fetchImportText, fetchImports } from '@/lib/imports';
  * read it back, "stored" would be invisible to the student - so past uploads
  * are listed here, and can be reopened or removed.
  */
-export function PastImports({ examId }: { examId: string }) {
+export function PastImports({
+  examId,
+  onResume,
+}: {
+  examId: string;
+  /** Reopens an upload that was never imported, using its stored text. */
+  onResume: (importId: string) => void;
+}) {
   const queryClient = useQueryClient();
   const [openId, setOpenId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -38,6 +45,8 @@ export function PastImports({ examId }: { examId: string }) {
 
   if (!imports || imports.length === 0) return null;
 
+  const pendingCount = imports.filter((record) => !record.appliedAt).length;
+
   const handleRemove = (id: string, fileName: string, applied: boolean) => {
     setError(null);
     const warning = applied
@@ -51,8 +60,18 @@ export function PastImports({ examId }: { examId: string }) {
     <Card className="mt-4 p-4">
       <h3 className="text-sm font-medium">Uploaded syllabi</h3>
       <p className="mt-1 text-xs text-slate-500">
-        The files themselves are not kept, but their text is stored and can be reopened.
+        The files themselves are not kept, but their text is stored, so an upload you did not
+        finish importing can be picked back up without uploading it again.
       </p>
+
+      {pendingCount > 0 && (
+        <p className="mt-3 rounded-lg bg-amber-50 px-3 py-2 text-sm text-amber-900 dark:bg-amber-950/50 dark:text-amber-200">
+          {pendingCount === 1
+            ? 'One upload has not been imported yet, so none of its topics are in your syllabus.'
+            : `${pendingCount} uploads have not been imported yet, so none of their topics are in your syllabus.`}{' '}
+          Use <strong>Review &amp; import</strong> to finish.
+        </p>
+      )}
 
       {error && (
         <div className="mt-3">
@@ -71,10 +90,20 @@ export function PastImports({ examId }: { examId: string }) {
                   {record.source === 'IMAGE_OCR' ? 'OCR' : 'PDF text'} ·{' '}
                   {record.characterCount.toLocaleString()} chars ·{' '}
                   {new Date(record.createdAt).toLocaleDateString()}
-                  {applied
+                    {applied
                     ? ` · imported ${record.subjectsCreated ?? 0} subjects, ${record.topicsCreated ?? 0} topics`
-                    : ' · not imported'}
+                    : ''}
                 </span>
+
+                {!applied && (
+                  <button
+                    type="button"
+                    onClick={() => onResume(record.id)}
+                    className="rounded-md bg-brand-600 px-2.5 py-1 text-xs font-medium text-white transition hover:bg-brand-700"
+                  >
+                    Review &amp; import
+                  </button>
+                )}
                 <button
                   type="button"
                   onClick={() => setOpenId(openId === record.id ? null : record.id)}

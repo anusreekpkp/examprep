@@ -84,6 +84,14 @@ export async function listImports(userId: string, examId: string) {
   });
 }
 
+/**
+ * Returns the stored text *and* a fresh parse of it.
+ *
+ * This is the whole reason the text is persisted rather than the file: an upload
+ * whose preview was closed without importing can be picked back up here, with no
+ * second upload and no re-OCR. It also means a later parser improvement can be
+ * applied to an old upload.
+ */
 export async function getImportText(userId: string, importId: string) {
   const record = await prisma.syllabusImport.findFirst({
     where: { id: importId, exam: { userId } },
@@ -98,7 +106,8 @@ export async function getImportText(userId: string, importId: string) {
     },
   });
   if (!record) throw ApiError.notFound('Import not found');
-  return record;
+
+  return { ...record, preview: parseSyllabus(record.extractedText, baseName(record.fileName)) };
 }
 
 /**

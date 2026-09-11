@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { Alert, Button, Card, Input } from '@/components/ui';
 import { extractErrorMessage } from '@/lib/api';
@@ -7,6 +7,7 @@ import {
   ACCEPT_ATTRIBUTE,
   MAX_UPLOAD_BYTES,
   applyImport,
+  fetchImportText,
   uploadSyllabus,
   type ImportResult,
 } from '@/lib/imports';
@@ -54,18 +55,57 @@ export function ImportSyllabusDialog({
   examId,
   onClose,
   onImported,
+  resumeImportId,
 }: {
   examId: string;
   onClose: () => void;
   onImported: (summary: { subjectsCreated: number; topicsCreated: number }) => void;
+  /**
+   * An upload whose preview was closed without importing. Its stored text is
+   * re-parsed server-side, so resuming costs no second upload and no re-OCR.
+   */
+  resumeImportId?: string;
 }) {
   const queryClient = useQueryClient();
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const [stage, setStage] = useState<'pick' | 'uploading' | 'review' | 'applying'>('pick');
+  const [stage, setStage] = useState<'pick' | 'uploading' | 'review' | 'applying'>(
+    resumeImportId ? 'uploading' : 'pick',
+  );
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<ImportResult | null>(null);
   const [drafts, setDrafts] = useState<DraftSubject[]>([]);
   const [showText, setShowText] = useState(false);
+
+  useEffect(() => {
+    if (!resumeImportId) return;
+    let cancelled = false;
+    void (async () => {
+      try {
+        const stored = await fetchImportText(resumeImportId);
+        if (cancelled) return;
+        setResult({
+          import: stored,
+          preview: stored.preview,
+          extractedText: stored.extractedText,
+        });
+        setDrafts(
+          stored.preview.subjects.map((subject) => ({
+            include: true,
+            name: subject.name,
+            topicsText: toTopicsText(subject.topics),
+          })),
+        );
+        setStage('review');
+      } catch (err) {
+        if (cancelled) return;
+        setError(extractErrorMessage(err, 'Could not reopen that upload'));
+        setStage('pick');
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [resumeImportId]);
 
   const handleFile = async (file: File) => {
     setError(null);
@@ -132,7 +172,23 @@ export function ImportSyllabusDialog({
     <Card className="p-4">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <h3 className="font-medium">Import a syllabus</h3>
-        <Button variant="ghost" onClick={onClose}>
+        <Button
+          variant="ghost"
+          onClick={() => {
+            // Closing here is how the first version silently lost people's
+            // uploads, so the unfinished step is spelled out before it happens.
+            if (
+              stage === 'review' &&
+              drafts.length > 0 &&
+              !window.confirm(
+                'Nothing has been added to your syllabus yet. Close without importing?\n\nThe extracted text is saved, so you can reopen this from "Uploaded syllabi" later.',
+              )
+            ) {
+              return;
+            }
+            onClose();
+          }}
+        >
           Close
         </Button>
       </div>
@@ -208,6 +264,13 @@ export function ImportSyllabusDialog({
               {result.preview.unmatchedLines.length} line
               {result.preview.unmatchedLines.length === 1 ? '' : 's'} could not be placed under a
               subject. They are in the extracted text above if you want to add them by hand.
+            </p>
+          )}
+
+          {drafts.length > 0 && (
+            <p className="rounded-lg border border-brand-200 bg-brand-50 px-3 py-2 text-sm text-brand-800 dark:border-brand-700/40 dark:bg-brand-700/15 dark:text-brand-100">
+              <strong>Not added yet.</strong> Check the subjects below, then press the Import
+              button at the bottom to add them to your syllabus.
             </p>
           )}
 

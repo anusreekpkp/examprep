@@ -31,6 +31,7 @@ export default function SyllabusPage() {
   const { data, isPending, isError, error } = useExamTree(examId);
   const [isAddingSubject, setIsAddingSubject] = useState(false);
   const [isImporting, setIsImporting] = useState(false);
+  const [resumeImportId, setResumeImportId] = useState<string | undefined>(undefined);
   const [importSummary, setImportSummary] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
 
@@ -245,9 +246,14 @@ export default function SyllabusPage() {
         <div className="mt-4">
           <ImportSyllabusDialog
             examId={id}
-            onClose={() => setIsImporting(false)}
+            {...(resumeImportId ? { resumeImportId } : {})}
+            onClose={() => {
+              setIsImporting(false);
+              setResumeImportId(undefined);
+            }}
             onImported={(summary) => {
               setIsImporting(false);
+              setResumeImportId(undefined);
               setImportSummary(
                 `Imported ${summary.subjectsCreated} subject${summary.subjectsCreated === 1 ? '' : 's'} and ${summary.topicsCreated} topic${summary.topicsCreated === 1 ? '' : 's'}.`,
               );
@@ -278,7 +284,13 @@ export default function SyllabusPage() {
               + Add subject
             </Button>
             {!isImporting && (
-              <Button variant="ghost" onClick={() => setIsImporting(true)}>
+              <Button
+                variant="ghost"
+                onClick={() => {
+                  setResumeImportId(undefined);
+                  setIsImporting(true);
+                }}
+              >
                 Upload syllabus PDF or image
               </Button>
             )}
@@ -286,7 +298,13 @@ export default function SyllabusPage() {
         )}
       </div>
 
-      <PastImports examId={id} />
+      <PastImports
+        examId={id}
+        onResume={(importId) => {
+          setResumeImportId(importId);
+          setIsImporting(true);
+        }}
+      />
     </AppShell>
   );
 }
