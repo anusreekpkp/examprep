@@ -12,6 +12,7 @@ const navItems = [
   { to: '/revisions', label: 'Revisions' },
   { to: '/timer', label: 'Timer' },
   { to: '/exams', label: 'Syllabus' },
+  { to: '/notes', label: 'Notes' },
   { to: '/mocks', label: 'Mocks' },
   { to: '/analytics', label: 'Analytics' },
 ];

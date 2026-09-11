@@ -6,6 +6,7 @@ import { SubjectCard } from '@/components/syllabus/SubjectCard';
 import { InlineForm } from '@/components/syllabus/InlineForm';
 import { ImportSyllabusDialog } from '@/components/syllabus/ImportSyllabusDialog';
 import { PastImports } from '@/components/syllabus/PastImports';
+import { useExamNotes } from '@/hooks/useNotes';
 import { extractErrorMessage } from '@/lib/api';
 import {
   formatMinutes,
@@ -44,6 +45,7 @@ export default function SyllabusPage() {
   const updateTopic = useUpdateTopic(id);
   const deleteTopic = useDeleteTopic(id);
   const updateStatus = useUpdateTopicStatus(id);
+  const { data: noteData } = useExamNotes(id);
 
   /** Mutations surface one shared error line rather than failing silently. */
   const run = async (action: () => Promise<unknown>, fallback: string) => {
@@ -232,6 +234,7 @@ export default function SyllabusPage() {
             onStatusChange={handleStatusChange}
             onDifficultyChange={handleDifficultyChange}
             onEstimateChange={handleEstimateChange}
+            {...(noteData ? { noteCounts: noteData.countsByTopic } : {})}
           />
         ))}
       </div>

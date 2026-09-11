@@ -69,7 +69,7 @@ trio, so each phase adds a folder rather than editing shared files.
 | 5 | Focus timer that logs sessions against topics | ✅ Done |
 | 6 | Priority scoring — "your next 3 priorities" | |
 | 7 | Daily planner, mock test tracker, analytics | ✅ Done |
-| 8 | Topic notes, file uploads, AI planner and note generation | |
+| 8 | Topic notes (done) · AI features deliberately out of scope | ⚠️ Partial |
 
 ---
 
@@ -173,6 +173,41 @@ students' data.
 Topic `status` is deliberately **not** patchable here. Marking a topic complete
 has to seed the revision ladder, so that gets its own endpoint in Phase 4
 instead of riding along on a generic update.
+
+## Notes
+
+Per-topic notes, typed so a formula and a past question are distinguishable at a
+glance: **My note**, **Formula**, **Question**, **Summary**, **Link**. Pinned
+notes sort first, because a formula you keep getting wrong should not sink under
+everything written since.
+
+Written **inline from the topic's own row** rather than on a separate screen - a
+note gets written while the topic is in front of you. Note counts come from one
+grouped query for the whole tree, so a 200-topic syllabus does not fire 200
+requests to render its badges. The Notes page searches titles, bodies and topic
+names together.
+
+Verified to round-trip Malayalam, Devanagari, the em dash and maths symbols
+(x, /, !=, sqrt) - a Kerala PSC aspirant writing notes in Malayalam is the
+expected case, not an edge one.
+
+### Attachments and AI are not built
+
+Two parts of the original brief are deliberately absent:
+
+- **Image and PDF attachments.** The `NoteAttachment` table exists but is
+  unused: Render's free disk is wiped on every deploy, so a stored file would
+  silently vanish. This needs object storage (Neon buckets, Cloudinary, S3)
+  before it is worth building. **Link** notes cover the URL case today.
+- **AI note generation, question generation and explanation.** These need a
+  paid LLM API, and the project is deliberately staying at zero running cost.
+  `ANTHROPIC_API_KEY` remains wired as an optional env var so the features can
+  be added later, but no dead code was written against it.
+
+The rest of the app is unaffected by this: every recommendation it makes - the
+priority score, the revision ladder, the daily plan - is deterministic,
+hand-tunable and explainable without a model, which was the design goal from
+Phase 6 onward.
 
 ## Syllabus upload
 

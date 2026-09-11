@@ -16,6 +16,7 @@ import { priorityRouter } from './modules/priority/priority.routes.js';
 import { mockRouter } from './modules/mock/mock.routes.js';
 import { planRouter } from './modules/plan/plan.routes.js';
 import { analyticsRouter } from './modules/analytics/analytics.routes.js';
+import { noteRouter } from './modules/note/note.routes.js';
 
 export function createApp() {
   const app = express();
@@ -53,6 +54,7 @@ export function createApp() {
   app.use('/api', mockRouter);
   app.use('/api', planRouter);
   app.use('/api', analyticsRouter);
+  app.use('/api', noteRouter);
 
   app.use(notFoundHandler);
   app.use(errorHandler);

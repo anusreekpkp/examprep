@@ -18,6 +18,7 @@ interface SubjectCardProps {
   onStatusChange: (topicId: string, status: TopicStatus) => void;
   onDifficultyChange: (topicId: string, difficulty: Difficulty) => void;
   onEstimateChange: (topicId: string, minutes: number) => Promise<void>;
+  noteCounts?: Record<string, number>;
 }
 
 export function SubjectCard({
@@ -34,6 +35,7 @@ export function SubjectCard({
   onStatusChange,
   onDifficultyChange,
   onEstimateChange,
+  noteCounts,
 }: SubjectCardProps) {
   // Collapsed by default would hide a 13-topic subject behind a click; expanded
   // by default matches how a student scans a syllabus.
@@ -152,6 +154,8 @@ export function SubjectCard({
                   onStatusChange={onStatusChange}
                   onDifficultyChange={onDifficultyChange}
                   onEstimateChange={onEstimateChange}
+                  noteCount={noteCounts?.[topic.id] ?? 0}
+                  {...(noteCounts ? { noteCounts } : {})}
                 />
               ))}
             </ul>

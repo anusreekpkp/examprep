@@ -12,6 +12,7 @@ import {
   type TopicStatus,
 } from '@/lib/syllabus';
 import { InlineForm } from './InlineForm';
+import { NotesPanel } from './NotesPanel';
 
 interface TopicRowProps {
   topic: TopicNode;
@@ -23,6 +24,10 @@ interface TopicRowProps {
   onStatusChange: (topicId: string, status: TopicStatus) => void;
   onDifficultyChange: (topicId: string, difficulty: Difficulty) => void;
   onEstimateChange: (topicId: string, minutes: number) => Promise<void>;
+  /** Note count for this topic, so the row can show a badge without its own query. */
+  noteCount?: number;
+  /** Counts keyed by topic id, passed down so sub-topics get badges too. */
+  noteCounts?: Record<string, number>;
 }
 
 export function TopicRow({
@@ -35,8 +40,11 @@ export function TopicRow({
   onStatusChange,
   onDifficultyChange,
   onEstimateChange,
+  noteCount = 0,
+  noteCounts,
 }: TopicRowProps) {
   const [mode, setMode] = useState<'view' | 'rename' | 'addChild' | 'estimate'>('view');
+  const [showNotes, setShowNotes] = useState(false);
 
   return (
     <li>
@@ -108,6 +116,9 @@ export function TopicRow({
             </button>
 
             <span className="flex shrink-0 gap-1">
+              <RowAction onClick={() => setShowNotes((open) => !open)}>
+                {noteCount > 0 ? `Notes ${noteCount}` : 'Notes'}
+              </RowAction>
               <RowAction onClick={() => setMode('addChild')}>+ sub</RowAction>
               <RowAction onClick={() => setMode('rename')}>Rename</RowAction>
               <RowAction
@@ -120,6 +131,12 @@ export function TopicRow({
           </>
         )}
       </div>
+
+      {showNotes && (
+        <div style={{ paddingLeft: `${depth * 1.25 + 0.5}rem` }} className="py-2 pr-2">
+          <NotesPanel topicId={topic.id} topicName={topic.name} />
+        </div>
+      )}
 
       {mode === 'estimate' && (
         <div style={{ paddingLeft: `${depth * 1.25 + 0.5}rem` }} className="py-2">
@@ -168,6 +185,7 @@ export function TopicRow({
               onStatusChange={onStatusChange}
               onDifficultyChange={onDifficultyChange}
               onEstimateChange={onEstimateChange}
+              noteCount={noteCounts?.[child.id] ?? 0}
             />
           ))}
         </ul>
