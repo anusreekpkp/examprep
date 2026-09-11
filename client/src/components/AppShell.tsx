@@ -11,6 +11,7 @@ const navItems = [
   { to: '/priorities', label: 'Next up' },
   { to: '/revisions', label: 'Revisions' },
   { to: '/timer', label: 'Timer' },
+  { to: '/mocks', label: 'Mocks' },
 ];
 
 export function AppShell({ children }: { children: ReactNode }) {

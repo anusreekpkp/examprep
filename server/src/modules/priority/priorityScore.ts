@@ -52,6 +52,11 @@ export interface PriorityInput {
   daysUntilExam: number;
   /** Whole days since the topic was last studied; null if never. */
   daysSinceStudied: number | null;
+  /**
+   * Mock-test accuracy for this topic's subject, 0-100, or null when too few
+   * questions have been attempted for the rate to mean anything.
+   */
+  subjectAccuracy: number | null;
 }
 
 export interface PriorityBreakdown {
@@ -89,6 +94,16 @@ function overrunRatio(input: PriorityInput): number {
   return clamp(input.totalStudyMinutes / input.estimatedMinutes - 1, 0, 1);
 }
 
+/**
+ * How badly the student is doing in this subject in mocks, 0-1. Measured
+ * evidence, so it is weighted more heavily than the self-assessed difficulty:
+ * 50% accuracy or below counts as fully weak, 80% and above as not weak at all.
+ */
+function mockWeakness(subjectAccuracy: number | null): number {
+  if (subjectAccuracy === null) return 0;
+  return clamp((80 - subjectAccuracy) / 30, 0, 1);
+}
+
 function weakness(input: PriorityInput): number {
   // MODERATE is the default every topic starts on, so it carries only a small
   // baseline: treating it as real evidence of weakness would add a constant to
@@ -101,7 +116,9 @@ function weakness(input: PriorityInput): number {
         : 0;
 
   return clamp(
-    base + overrunRatio(input) * COMPONENT_MAX.weakness * 0.25,
+    base +
+      overrunRatio(input) * COMPONENT_MAX.weakness * 0.25 +
+      mockWeakness(input.subjectAccuracy) * COMPONENT_MAX.weakness * 0.5,
     0,
     COMPONENT_MAX.weakness,
   );
@@ -179,7 +196,8 @@ export function scoreTopic(input: PriorityInput): PriorityBreakdown {
   // Weakness is only offered as a *reason* when there is real evidence for it.
   // The MODERATE baseline moves the score a little but saying "marked
   // difficult" about a topic sitting on the default would simply be untrue.
-  const weaknessIsEvidenced = input.difficulty === 'DIFFICULT' || overrun > 0;
+  const poorInMocks = mockWeakness(input.subjectAccuracy) > 0.25;
+  const weaknessIsEvidenced = input.difficulty === 'DIFFICULT' || overrun > 0 || poorInMocks;
 
   const reasons = (Object.entries(components) as [ComponentKey, number][])
     .filter(([key, value]) => {
@@ -203,7 +221,8 @@ export function scoreTopic(input: PriorityInput): PriorityBreakdown {
     .map(([key]) => {
       if (key === 'coverageGap' && input.status === 'LEARNING') return 'part-way through';
       if (key === 'weakness' && input.difficulty !== 'DIFFICULT') {
-        return 'taking longer than estimated';
+        // Measured mock accuracy is the stronger claim, so it wins the label.
+        return poorInMocks ? 'low mock accuracy' : 'taking longer than estimated';
       }
       return REASON_TEXT[key];
     });

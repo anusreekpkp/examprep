@@ -3,6 +3,7 @@ import { assertExamOwned } from '../../utils/ownership.js';
 import { daysBetweenKeys, localDateKey, safeTimeZone } from '../../utils/dates.js';
 import { daysUntil } from '../syllabus/syllabus.service.js';
 import { scoreTopic, type PriorityBreakdown } from './priorityScore.js';
+import { subjectAccuracyMap } from '../mock/mock.service.js';
 import type { Difficulty, TopicStatus } from '../../generated/prisma/enums.js';
 
 export interface RankedTopic extends PriorityBreakdown {
@@ -21,6 +22,7 @@ export interface RankedTopic extends PriorityBreakdown {
     examName: string;
     daysOverdue: number | null;
     daysSinceStudied: number | null;
+    subjectAccuracy: number | null;
   };
 }
 
@@ -44,6 +46,10 @@ export async function rankTopics(
   const timeZone = safeTimeZone(user?.timezone);
   const now = new Date();
   const todayKey = localDateKey(now, timeZone);
+
+  // Mock results are evidence the student may not have reflected in the
+  // difficulty flags, so they feed the weakness component directly.
+  const accuracyBySubject = await subjectAccuracyMap(userId);
 
   const topics = await prisma.topic.findMany({
     where: {
@@ -111,6 +117,7 @@ export async function rankTopics(
       daysOverdue: daysOverdue !== null && daysOverdue >= 0 ? daysOverdue : null,
       daysUntilExam: daysUntil(topic.subject.exam.examDate, now),
       daysSinceStudied,
+      subjectAccuracy: accuracyBySubject.get(topic.subject.id) ?? null,
     });
 
     return {
@@ -130,6 +137,7 @@ export async function rankTopics(
         examName: topic.subject.exam.name,
         daysOverdue: daysOverdue !== null && daysOverdue >= 0 ? daysOverdue : null,
         daysSinceStudied,
+        subjectAccuracy: accuracyBySubject.get(topic.subject.id) ?? null,
       },
     } satisfies RankedTopic;
   });
