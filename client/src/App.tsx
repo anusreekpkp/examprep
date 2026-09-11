@@ -14,6 +14,8 @@ import RevisionsPage from '@/pages/RevisionsPage';
 import TimerPage from '@/pages/TimerPage';
 import PrioritiesPage from '@/pages/PrioritiesPage';
 import MockTestsPage from '@/pages/MockTestsPage';
+import PlanPage from '@/pages/PlanPage';
+import AnalyticsPage from '@/pages/AnalyticsPage';
 
 export default function App() {
   const bootstrap = useAuthStore((s) => s.bootstrap);
@@ -94,6 +96,23 @@ export default function App() {
         element={
           <ProtectedRoute>
             <MockTestsPage />
+          </ProtectedRoute>
+        }
+      />
+
+      <Route
+        path="/plan"
+        element={
+          <ProtectedRoute>
+            <PlanPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/analytics"
+        element={
+          <ProtectedRoute>
+            <AnalyticsPage />
           </ProtectedRoute>
         }
       />

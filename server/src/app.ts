@@ -14,6 +14,8 @@ import { revisionRouter } from './modules/revision/revision.routes.js';
 import { sessionRouter } from './modules/session/session.routes.js';
 import { priorityRouter } from './modules/priority/priority.routes.js';
 import { mockRouter } from './modules/mock/mock.routes.js';
+import { planRouter } from './modules/plan/plan.routes.js';
+import { analyticsRouter } from './modules/analytics/analytics.routes.js';
 
 export function createApp() {
   const app = express();
@@ -49,6 +51,8 @@ export function createApp() {
   app.use('/api', sessionRouter);
   app.use('/api', priorityRouter);
   app.use('/api', mockRouter);
+  app.use('/api', planRouter);
+  app.use('/api', analyticsRouter);
 
   app.use(notFoundHandler);
   app.use(errorHandler);

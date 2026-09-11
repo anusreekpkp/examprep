@@ -7,11 +7,13 @@ import { Button } from '@/components/ui';
 
 const navItems = [
   { to: '/dashboard', label: 'Dashboard' },
-  { to: '/exams', label: 'Exams' },
+  { to: '/plan', label: 'Today' },
   { to: '/priorities', label: 'Next up' },
   { to: '/revisions', label: 'Revisions' },
   { to: '/timer', label: 'Timer' },
+  { to: '/exams', label: 'Syllabus' },
   { to: '/mocks', label: 'Mocks' },
+  { to: '/analytics', label: 'Analytics' },
 ];
 
 export function AppShell({ children }: { children: ReactNode }) {
@@ -35,7 +37,7 @@ export function AppShell({ children }: { children: ReactNode }) {
             </span>
           </Link>
 
-          <nav className="flex items-center gap-1">
+          <nav className="flex flex-wrap items-center gap-1">
             {navItems.map((item) => (
               <NavLink
                 key={item.to}

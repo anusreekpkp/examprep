@@ -1,0 +1,85 @@
+import { api } from './api';
+import type { TopicStatus } from './syllabus';
+
+export type PlanActivity = 'NEW_TOPIC' | 'PRACTICE' | 'REVISION' | 'MOCK_TEST' | 'BREAK';
+export type PlanItemStatus = 'PENDING' | 'COMPLETED' | 'SKIPPED';
+
+export interface PlanItem {
+  id: string;
+  activity: PlanActivity;
+  orderIndex: number;
+  startMinuteOfDay: number;
+  durationMinutes: number;
+  status: PlanItemStatus;
+  priorityScore: number | null;
+  topic: {
+    id: string;
+    name: string;
+    status: TopicStatus;
+    estimatedMinutes: number;
+    subject: { id: string; name: string };
+  } | null;
+}
+
+export interface StudyPlan {
+  id: string;
+  planDate: string;
+  totalMinutes: number;
+  isAiGenerated: boolean;
+  generatedAt: string;
+  items: PlanItem[];
+}
+
+interface Envelope<T> {
+  success: boolean;
+  data: T;
+}
+
+export const ACTIVITY_LABELS: Record<PlanActivity, string> = {
+  NEW_TOPIC: 'New topic',
+  PRACTICE: 'Practice',
+  REVISION: 'Revision',
+  MOCK_TEST: 'Mock test',
+  BREAK: 'Break',
+};
+
+export const ACTIVITY_CLASSES: Record<PlanActivity, string> = {
+  NEW_TOPIC: 'bg-brand-50 text-brand-700 dark:bg-brand-700/20 dark:text-brand-100',
+  PRACTICE: 'bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-200',
+  REVISION: 'bg-orange-100 text-orange-800 dark:bg-orange-950 dark:text-orange-200',
+  MOCK_TEST: 'bg-sky-100 text-sky-800 dark:bg-sky-950 dark:text-sky-200',
+  BREAK: 'bg-slate-100 text-slate-500 dark:bg-slate-800 dark:text-slate-400',
+};
+
+/** 480 -> "08:00" */
+export function minuteToClock(minuteOfDay: number): string {
+  const h = Math.floor(minuteOfDay / 60) % 24;
+  const m = minuteOfDay % 60;
+  return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
+}
+
+export async function fetchPlan(
+  examId: string,
+  date?: string,
+): Promise<{ plan: StudyPlan | null; date: string; timeZone: string }> {
+  const { data } = await api.get<Envelope<{ plan: StudyPlan | null; date: string; timeZone: string }>>(
+    `/api/exams/${examId}/plan`,
+    { params: date ? { date } : undefined },
+  );
+  return data.data;
+}
+
+export async function generatePlan(
+  examId: string,
+  payload: { availableMinutes?: number; startMinuteOfDay?: number; planDate?: string },
+): Promise<StudyPlan> {
+  const { data } = await api.post<Envelope<{ plan: StudyPlan }>>(
+    `/api/exams/${examId}/plan`,
+    payload,
+  );
+  return data.data.plan;
+}
+
+export async function updatePlanItem(itemId: string, status: PlanItemStatus): Promise<void> {
+  await api.patch(`/api/plan-items/${itemId}`, { status });
+}

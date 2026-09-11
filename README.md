@@ -68,7 +68,7 @@ trio, so each phase adds a folder rather than editing shared files.
 | 4 | Adaptive revision engine (1 → 3 → 7 → 15 → 30 days) | ✅ Done |
 | 5 | Focus timer that logs sessions against topics | ✅ Done |
 | 6 | Priority scoring — "your next 3 priorities" | |
-| 7 | Daily planner, mock test tracker, analytics | |
+| 7 | Daily planner, mock test tracker, analytics | ✅ Done |
 | 8 | Topic notes, file uploads, AI planner and note generation | |
 
 ---
@@ -229,6 +229,51 @@ otherwise split a shared subject in two.
 > On Render's free tier the OCR language data is re-downloaded after a cold
 > start, because the disk is ephemeral. The first image upload after the service
 > wakes is therefore slower than later ones. PDFs are unaffected.
+
+## Daily planner
+
+`POST /api/exams/:examId/plan` lays out a day from the signals the rest of the
+app already produces: **due revisions first**, then the highest-priority topics,
+with a 10-minute break after every 50 minutes of work.
+
+Revisions come first regardless of score. The ladder has already decided today
+is the day, and letting a high-scoring new topic push a due revision into
+tomorrow would quietly undo the spacing that makes revision work at all.
+
+A revision gets a short slot (40% of the topic's estimate, 10-30 minutes) since
+it is a refresher, not a re-study; a new topic is capped at 60 minutes so one
+item cannot eat the day. Regenerating **replaces** the day rather than stacking
+a second plan on it - `StudyPlan` is unique per `(user, exam, date)`.
+
+## Mock tests
+
+Recorded section by section. The headline totals are derived from the sections
+rather than trusted from the client, so the score can never disagree with its
+own breakdown, and accuracy is `correct / attempted` - a question left blank is
+not a wrong answer.
+
+Its real job is closing the loop: **subject accuracy feeds the weakness
+component of the priority engine**. A subject the student keeps getting wrong in
+mocks pushes its unfinished topics up the ranking, labelled "low mock accuracy".
+Measured evidence outranks the self-assessed difficulty flag. A subject with
+fewer than ten attempted questions is ignored, because the rate would be noise.
+
+## Analytics
+
+`GET /api/analytics/summary` reports totals, daily breakdown, per-subject time,
+streak and most productive day - then turns them into sentences worth acting on:
+
+> You have put 4h 40m into General Awareness this week, but your mock accuracy
+> there is only 49%. Try practising questions rather than re-reading.
+
+Every insight is gated behind enough evidence to be worth saying - an insight
+drawn from twenty minutes of data is noise with a warning icon. The
+"time in, accuracy out" comparison is the one the brief asked for, and it is the
+reason mock results and study sessions had to share a subject key.
+
+The daily average is taken over the whole window rather than only days studied,
+because averaging over days-studied flatters a student who did one long session
+and nothing else.
 
 ## Priority engine
 

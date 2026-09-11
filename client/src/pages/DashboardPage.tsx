@@ -17,7 +17,7 @@ const phases = [
   { id: 4, name: 'Revision engine', detail: 'Spaced repetition with Easy / Moderate / Difficult feedback', done: true },
   { id: 5, name: 'Study timer', detail: 'Focus sessions logged against a specific topic', done: true },
   { id: 6, name: 'Priority engine', detail: '"What should I study next?" scoring across every topic', done: true },
-  { id: 7, name: 'Planner, mocks & analytics', detail: 'Daily plans, mock test tracker, weekly reports', done: false },
+  { id: 7, name: 'Planner, mocks & analytics', detail: 'Daily plans, mock test tracker, weekly reports', done: true },
   { id: 8, name: 'Notes & AI layer', detail: 'Topic notes, AI planner, note and question generation', done: false },
 ];
 
