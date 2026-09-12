@@ -1,10 +1,17 @@
 import type { CookieOptions, Request, Response } from 'express';
-import { env, isProduction } from '../../config/env.js';
+import { env, isGoogleEnabled, isProduction } from '../../config/env.js';
 import { ApiError } from '../../utils/ApiError.js';
 import { parseDuration } from '../../utils/tokens.js';
 import { requireUser } from '../../middleware/authenticate.js';
 import * as authService from './auth.service.js';
-import type { LoginInput, RegisterInput, UpdateProfileInput } from './auth.schema.js';
+import type {
+  ForgotPasswordInput,
+  GoogleSignInInput,
+  LoginInput,
+  RegisterInput,
+  ResetPasswordInput,
+  UpdateProfileInput,
+} from './auth.schema.js';
 
 export const REFRESH_COOKIE = 'examprep_refresh';
 
@@ -50,6 +57,39 @@ export async function registerHandler(req: Request, res: Response) {
 export async function loginHandler(req: Request, res: Response) {
   const result = await authService.login(req.body as LoginInput, contextFrom(req));
   sendAuthResult(res, result);
+}
+
+/** Lets the sign-in page decide whether to render the Google button. */
+export function authConfigHandler(_req: Request, res: Response) {
+  res.json({
+    success: true,
+    data: {
+      googleEnabled: isGoogleEnabled,
+      googleClientId: isGoogleEnabled ? env.GOOGLE_CLIENT_ID : null,
+    },
+  });
+}
+
+export async function googleHandler(req: Request, res: Response) {
+  const result = await authService.signInWithGoogle(
+    req.body as GoogleSignInInput,
+    contextFrom(req),
+  );
+  sendAuthResult(res, result);
+}
+
+export async function forgotPasswordHandler(req: Request, res: Response) {
+  await authService.requestPasswordReset(req.body as ForgotPasswordInput, contextFrom(req));
+  // Deliberately identical whether or not the address exists.
+  res.json({
+    success: true,
+    message: 'If that email has an account, a reset link is on its way.',
+  });
+}
+
+export async function resetPasswordHandler(req: Request, res: Response) {
+  await authService.resetPassword(req.body as ResetPasswordInput);
+  res.json({ success: true, message: 'Your password has been changed. Sign in with it now.' });
 }
 
 export async function refreshHandler(req: Request, res: Response) {

@@ -7,6 +7,7 @@ import { useAuthStore } from '@/stores/authStore';
 import { extractErrorMessage } from '@/lib/api';
 import { Alert, Button, Card, Field, Input } from '@/components/ui';
 import { WakingBanner } from '@/components/WakingBanner';
+import { GoogleSignInButton } from '@/components/GoogleSignInButton';
 
 // Mirrors server/src/modules/auth/auth.schema.ts so the student sees the same
 // rules before a round trip. The server remains the authority.
@@ -24,6 +25,7 @@ type FormValues = z.infer<typeof schema>;
 
 export default function RegisterPage() {
   const registerUser = useAuthStore((s) => s.register);
+  const loginWithGoogle = useAuthStore((s) => s.loginWithGoogle);
   const user = useAuthStore((s) => s.user);
   const navigate = useNavigate();
   const [formError, setFormError] = useState<string | null>(null);
@@ -56,6 +58,18 @@ export default function RegisterPage() {
       </div>
 
       <Card>
+        <GoogleSignInButton
+          onCredential={(credential) => {
+            setFormError(null);
+            loginWithGoogle(credential)
+              .then(() => navigate('/dashboard', { replace: true }))
+              .catch((error) =>
+                setFormError(extractErrorMessage(error, 'Could not sign up with Google')),
+              );
+          }}
+          onError={setFormError}
+        />
+
         <form onSubmit={onSubmit} className="space-y-4" noValidate>
           <WakingBanner />
           {formError && <Alert>{formError}</Alert>}

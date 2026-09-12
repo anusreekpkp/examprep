@@ -17,6 +17,7 @@ interface AuthState {
   /** True until the silent-refresh attempt on boot settles, so routes can wait. */
   isBootstrapping: boolean;
   login: (email: string, password: string) => Promise<void>;
+  loginWithGoogle: (credential: string) => Promise<void>;
   register: (input: { name: string; email: string; password: string }) => Promise<void>;
   logout: () => Promise<void>;
   bootstrap: () => Promise<void>;
@@ -28,6 +29,16 @@ export const useAuthStore = create<AuthState>((set) => ({
 
   login: async (email, password) => {
     const { data } = await api.post<AuthResponse>('/api/auth/login', { email, password });
+    setAccessToken(data.data.accessToken);
+    set({ user: data.data.user });
+  },
+
+  loginWithGoogle: async (credential) => {
+    const { data } = await api.post<AuthResponse>('/api/auth/google', {
+      credential,
+      // Sent on first sign-in so a new account starts in the right timezone.
+      timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+    });
     setAccessToken(data.data.accessToken);
     set({ user: data.data.user });
   },

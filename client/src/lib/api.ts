@@ -194,6 +194,38 @@ export interface AuthUser {
   name: string;
   timezone: string;
   createdAt: string;
+  avatarUrl?: string | null;
+}
+
+export interface AuthConfig {
+  googleEnabled: boolean;
+  googleClientId: string | null;
+}
+
+/**
+ * Asks the API whether Google sign-in is configured. Served by the API rather
+ * than baked in at build time, so turning it on is one Render env var and a
+ * restart - no client rebuild.
+ */
+export async function fetchAuthConfig(): Promise<AuthConfig> {
+  const { data } = await api.get<{ success: boolean; data: AuthConfig }>('/api/auth/config');
+  return data.data;
+}
+
+export async function requestPasswordReset(email: string): Promise<string> {
+  const { data } = await api.post<{ success: boolean; message: string }>(
+    '/api/auth/forgot-password',
+    { email },
+  );
+  return data.message;
+}
+
+export async function resetPassword(token: string, password: string): Promise<string> {
+  const { data } = await api.post<{ success: boolean; message: string }>(
+    '/api/auth/reset-password',
+    { token, password },
+  );
+  return data.message;
 }
 
 export interface HealthResponse {

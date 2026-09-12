@@ -155,6 +155,50 @@ by walking back to `exam.userId`. They return **404, not 403**, for a row owned
 by someone else: a 403 would confirm the id exists and leak the shape of other
 students' data.
 
+### Sign in with Google
+
+Optional, and off until `GOOGLE_CLIENT_ID` is set - the button is not rendered
+and Google's script is never even loaded, so the page costs nothing when it is
+unconfigured. The client asks `GET /api/auth/config` rather than reading a
+build-time variable, so switching it on is one Render env var and a restart, not
+a client rebuild.
+
+The browser gets a **signed ID token** from Google and the server verifies it
+against Google's keys; no OAuth secret ever reaches the client, and nothing is
+trusted until that signature checks out.
+
+Accounts are matched on Google's `sub`, **never on the email address**. An email
+can be reassigned or changed, so matching on it alone is an account-takeover
+path. The email is used only to link a Google login to an existing password
+account, and only when Google reports it as verified.
+
+An account created through Google has `passwordHash: null`. Signing in with a
+password would otherwise fail forever with no explanation, so that case returns
+a message naming the method. That does confirm the address is registered - but
+`POST /register` already returns 409 for a taken email, so the enumeration door
+is open regardless, and leaving a student permanently stuck is the worse trade.
+
+### Password reset
+
+`POST /api/auth/forgot-password` **always** responds identically, whether or not
+the address exists. It is the one endpoint that could otherwise be turned into
+an account-enumeration oracle, and it is rate limited like the other credential
+routes - without that it is a free email-sending endpoint pointed at any address
+someone types.
+
+Reset tokens are stored as SHA-256 hashes for the same reason refresh tokens
+are, last 30 minutes, and are single use. Requesting a new link invalidates any
+outstanding one. Completing a reset **revokes every existing session**: if the
+reset was prompted by someone else knowing the password, leaving their refresh
+tokens alive would defeat the point.
+
+Email goes through Resend as a plain `fetch` rather than the SDK - it is one
+POST, and keeping it dependency-free means swapping to SES, Postmark or SMTP is
+a change to `server/src/lib/mailer.ts` alone. **With no `RESEND_API_KEY` the
+link is written to the server log instead**, so the flow is usable in
+development and on a fresh deploy rather than failing in a way that looks like a
+broken feature.
+
 ### Endpoints
 
 | Method | Route | Purpose |
@@ -523,7 +567,11 @@ the refresh cookie is issued with `SameSite=None; Secure`.
 
 | Method | Route | Auth | Purpose |
 |--------|-------|------|---------|
+| GET | `/api/auth/config` | - | Whether Google sign-in is available |
 | POST | `/api/auth/register` | - | Create an account, returns tokens |
+| POST | `/api/auth/google` | - | Verify a Google ID token and sign in |
+| POST | `/api/auth/forgot-password` | - | Send a reset link (always the same reply) |
+| POST | `/api/auth/reset-password` | - | Set a new password, revoke all sessions |
 | POST | `/api/auth/login` | - | Sign in |
 | POST | `/api/auth/refresh` | cookie | Rotate tokens, get a new access token |
 | POST | `/api/auth/logout` | cookie | Revoke the whole token family |

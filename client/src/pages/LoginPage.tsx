@@ -7,6 +7,7 @@ import { useAuthStore } from '@/stores/authStore';
 import { extractErrorMessage } from '@/lib/api';
 import { Alert, Button, Card, Field, Input } from '@/components/ui';
 import { WakingBanner } from '@/components/WakingBanner';
+import { GoogleSignInButton } from '@/components/GoogleSignInButton';
 
 const schema = z.object({
   email: z.string().email('Enter a valid email address'),
@@ -17,6 +18,7 @@ type FormValues = z.infer<typeof schema>;
 
 export default function LoginPage() {
   const login = useAuthStore((s) => s.login);
+  const loginWithGoogle = useAuthStore((s) => s.loginWithGoogle);
   const user = useAuthStore((s) => s.user);
   const navigate = useNavigate();
   const location = useLocation();
@@ -51,6 +53,18 @@ export default function LoginPage() {
       </div>
 
       <Card>
+        <GoogleSignInButton
+          onCredential={(credential) => {
+            setFormError(null);
+            loginWithGoogle(credential)
+              .then(() => navigate(from, { replace: true }))
+              .catch((error) =>
+                setFormError(extractErrorMessage(error, 'Could not sign in with Google')),
+              );
+          }}
+          onError={setFormError}
+        />
+
         <form onSubmit={onSubmit} className="space-y-4" noValidate>
           <WakingBanner />
           {formError && <Alert>{formError}</Alert>}
@@ -65,6 +79,16 @@ export default function LoginPage() {
               {...register('email')}
             />
           </Field>
+
+          <div className="flex items-baseline justify-between">
+            <span />
+            <Link
+              to="/forgot-password"
+              className="text-xs font-medium text-brand-600 hover:underline"
+            >
+              Forgot your password?
+            </Link>
+          </div>
 
           <Field label="Password" htmlFor="password" error={errors.password?.message}>
             <Input

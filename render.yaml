@@ -38,6 +38,22 @@ services:
       - key: ANTHROPIC_API_KEY
         sync: false
 
+      # Sign in with Google. Paste an OAuth 2.0 Web application client ID from
+      # console.cloud.google.com; the button stays hidden until this is set.
+      - key: GOOGLE_CLIENT_ID
+        sync: false
+
+      # Password reset email. Without a key the reset link is written to this
+      # service's log instead, so the flow still works.
+      - key: RESEND_API_KEY
+        sync: false
+      - key: MAIL_FROM
+        value: ExamPrep <onboarding@resend.dev>
+
+      # Base URL used in emailed links; defaults to CORS_ORIGIN when blank.
+      - key: APP_URL
+        sync: false
+
   # ------------------------------------------------------------- CLIENT ----
   # Static sites have no plan field - Render always serves them free.
   - type: web

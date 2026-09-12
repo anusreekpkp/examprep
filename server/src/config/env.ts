@@ -21,6 +21,19 @@ const envSchema = z.object({
   REFRESH_TOKEN_EXPIRES_IN: z.string().default('30d'),
   CORS_ORIGIN: z.string().default('http://localhost:5173'),
   ANTHROPIC_API_KEY: z.string().optional(),
+
+  /** Google OAuth client id. Sign in with Google is hidden when unset. */
+  GOOGLE_CLIENT_ID: z.string().optional(),
+
+  /** Resend API key. Without it, reset links are logged instead of emailed. */
+  RESEND_API_KEY: z.string().optional(),
+  MAIL_FROM: z.string().default('ExamPrep <onboarding@resend.dev>'),
+
+  /**
+   * Where reset links point. Falls back to the first allowed CORS origin, which
+   * is the web app in every environment we run.
+   */
+  APP_URL: z.string().optional(),
 });
 
 const parsed = envSchema.safeParse(process.env);
@@ -39,3 +52,12 @@ export const isDevelopment = env.NODE_ENV === 'development';
 export const corsOrigins = env.CORS_ORIGIN.split(',')
   .map((o) => o.trim())
   .filter(Boolean);
+
+/** Base URL used in emailed links. */
+export const appUrl = (env.APP_URL ?? corsOrigins[0] ?? 'http://localhost:5173').replace(
+  /\/+$/,
+  '',
+);
+
+export const isGoogleEnabled = Boolean(env.GOOGLE_CLIENT_ID);
+export const isEmailEnabled = Boolean(env.RESEND_API_KEY);

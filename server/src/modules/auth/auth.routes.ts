@@ -3,13 +3,24 @@ import { asyncHandler } from '../../utils/asyncHandler.js';
 import { authenticate } from '../../middleware/authenticate.js';
 import { validateBody } from '../../middleware/validate.js';
 import { authLimiter } from '../../middleware/rateLimit.js';
-import { loginSchema, registerSchema, updateProfileSchema } from './auth.schema.js';
 import {
+  forgotPasswordSchema,
+  googleSignInSchema,
+  loginSchema,
+  registerSchema,
+  resetPasswordSchema,
+  updateProfileSchema,
+} from './auth.schema.js';
+import {
+  authConfigHandler,
+  forgotPasswordHandler,
+  googleHandler,
   loginHandler,
   logoutHandler,
   meHandler,
   refreshHandler,
   registerHandler,
+  resetPasswordHandler,
   updateProfileHandler,
 } from './auth.controller.js';
 
@@ -23,6 +34,31 @@ authRouter.post(
 );
 
 authRouter.post('/login', authLimiter, validateBody(loginSchema), asyncHandler(loginHandler));
+
+authRouter.get('/config', authConfigHandler);
+
+authRouter.post(
+  '/google',
+  authLimiter,
+  validateBody(googleSignInSchema),
+  asyncHandler(googleHandler),
+);
+
+// Throttled like the other credential routes: without it this is a free
+// email-sending endpoint pointed at any address someone types.
+authRouter.post(
+  '/forgot-password',
+  authLimiter,
+  validateBody(forgotPasswordSchema),
+  asyncHandler(forgotPasswordHandler),
+);
+
+authRouter.post(
+  '/reset-password',
+  authLimiter,
+  validateBody(resetPasswordSchema),
+  asyncHandler(resetPasswordHandler),
+);
 
 authRouter.post('/refresh', asyncHandler(refreshHandler));
 
