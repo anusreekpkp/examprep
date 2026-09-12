@@ -12,6 +12,7 @@ import {
   fetchPlan,
   generatePlan,
   minuteToClock,
+  planItemStudyHref,
   updatePlanItem,
   type PlanItemStatus,
 } from '@/lib/plans';
@@ -64,6 +65,12 @@ export default function PlanPage() {
     plan?.items
       .filter((item) => item.activity !== 'BREAK')
       .reduce((sum, item) => sum + item.durationMinutes, 0) ?? 0;
+
+  /** The next thing actually left to do, so the plan has one obvious entry point. */
+  const nextItem =
+    plan?.items.find(
+      (item) => item.activity !== 'BREAK' && item.status === 'PENDING' && item.topic,
+    ) ?? null;
 
   return (
     <AppShell>
@@ -195,7 +202,12 @@ export default function PlanPage() {
                   </span>
 
                   {!isBreak && (
-                    <span className="flex shrink-0 gap-1">
+                    <span className="flex shrink-0 items-center gap-1">
+                      {!done && !skipped && item.topic && examId && (
+                        <Link to={planItemStudyHref(examId, item)}>
+                          <Button className="px-3 py-1 text-xs">Start</Button>
+                        </Link>
+                      )}
                       <button
                         type="button"
                         onClick={() =>
@@ -229,9 +241,29 @@ export default function PlanPage() {
             })}
           </ol>
 
-          <Link to="/timer" className="mt-4 inline-block">
-            <Button variant="ghost">Open the timer</Button>
-          </Link>
+          <div className="mt-5 flex flex-wrap items-center gap-3 border-t border-slate-100 pt-4 dark:border-slate-800">
+            {nextItem && examId ? (
+              <>
+                <Link to={planItemStudyHref(examId, nextItem)}>
+                  <Button>Start next: {nextItem.topic?.name}</Button>
+                </Link>
+                <span className="text-sm text-slate-500">
+                  {minuteToClock(nextItem.startMinuteOfDay)} ·{' '}
+                  {formatMinutes(nextItem.durationMinutes)} ·{' '}
+                  {ACTIVITY_LABELS[nextItem.activity].toLowerCase()}
+                </span>
+              </>
+            ) : (
+              <>
+                <p className="text-sm text-slate-500">
+                  Everything on today&rsquo;s plan is ticked off or skipped.
+                </p>
+                <Link to="/timer">
+                  <Button variant="ghost">Open the timer</Button>
+                </Link>
+              </>
+            )}
+          </div>
         </Card>
       )}
 

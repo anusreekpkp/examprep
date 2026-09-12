@@ -1,5 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
+import { useQueryClient } from '@tanstack/react-query';
+import { updatePlanItem } from '@/lib/plans';
 import { AppShell } from '@/components/AppShell';
 import { Alert, Button, Card, Field, Input } from '@/components/ui';
 import { extractErrorMessage } from '@/lib/api';
@@ -23,6 +25,7 @@ import { useExamTree, useExams } from '@/hooks/useSyllabus';
 const PRESETS = [25, 50, 90];
 
 export default function TimerPage() {
+  const queryClient = useQueryClient();
   const { data: active, isPending } = useActiveSession();
   const { data: exams } = useExams();
   const start = useStartSession();
@@ -40,6 +43,9 @@ export default function TimerPage() {
   const linkedTopicId = searchParams.get('topicId') ?? '';
   const linkedExamId = searchParams.get('examId') ?? undefined;
   const linkedType = searchParams.get('type');
+  const linkedMinutes = Number(searchParams.get('minutes'));
+  /** Set when arriving from today's plan: finishing the topic ticks that slot off. */
+  const linkedPlanItemId = searchParams.get('planItemId');
 
   const nextExam = exams
     ?.filter((exam) => exam.daysRemaining >= 0)
@@ -49,9 +55,13 @@ export default function TimerPage() {
 
   const [topicId, setTopicId] = useState(linkedTopicId);
   const [sessionType, setSessionType] = useState<SessionType>(
-    linkedType === 'REVISION' ? 'REVISION' : 'NEW_TOPIC',
+    linkedType && linkedType in SESSION_TYPE_LABELS ? (linkedType as SessionType) : 'NEW_TOPIC',
   );
-  const [plannedMinutes, setPlannedMinutes] = useState(50);
+  const [plannedMinutes, setPlannedMinutes] = useState(
+    Number.isFinite(linkedMinutes) && linkedMinutes >= 1 && linkedMinutes <= 240
+      ? linkedMinutes
+      : 50,
+  );
   const [error, setError] = useState<string | null>(null);
   const [summary, setSummary] = useState<string | null>(null);
 
@@ -156,6 +166,21 @@ export default function TimerPage() {
       } else if (result.topicStatus === 'LEARNING') {
         parts.push('marked as learning');
       }
+
+      // Only a finished topic ticks the plan slot off: a partial session is
+      // real progress but the slot's work is not done, and silently marking it
+      // complete would make the plan lie about the day.
+      if (linkedPlanItemId && completion === 'YES') {
+        try {
+          await updatePlanItem(linkedPlanItemId, 'COMPLETED');
+          await queryClient.invalidateQueries({ queryKey: ['plan'] });
+          parts.push('ticked off today’s plan');
+        } catch {
+          // The session itself is already saved; the student can tick the plan
+          // item by hand, so this is not worth an error banner.
+        }
+      }
+
       setSummary(`${parts.join(' · ')}.`);
       setIsFinishing(false);
     } catch (err) {
@@ -314,8 +339,19 @@ export default function TimerPage() {
 
           {linkedTopicLabel && (
             <p className="mt-1 text-sm text-slate-500">
-              Ready to work on <strong className="text-slate-700 dark:text-slate-200">{linkedTopicLabel}</strong>
-              . Pick a length and go.
+              Ready to work on{' '}
+              <strong className="text-slate-700 dark:text-slate-200">{linkedTopicLabel}</strong>
+              {linkedPlanItemId ? (
+                <>
+                  , from{' '}
+                  <Link to="/plan" className="text-brand-600 hover:underline">
+                    today&rsquo;s plan
+                  </Link>
+                  . Finishing the topic ticks that slot off.
+                </>
+              ) : (
+                '. Pick a length and go.'
+              )}
             </p>
           )}
 

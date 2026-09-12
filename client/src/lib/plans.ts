@@ -51,6 +51,23 @@ export const ACTIVITY_CLASSES: Record<PlanActivity, string> = {
   BREAK: 'bg-slate-100 text-slate-500 dark:bg-slate-800 dark:text-slate-400',
 };
 
+/**
+ * Deep link from a plan item into a timer session already set up for it - the
+ * topic, the activity and the slot's length. planItemId travels too so the
+ * timer can tick the item off when the session is finished, instead of leaving
+ * the student to come back and do it by hand.
+ */
+export function planItemStudyHref(examId: string, item: PlanItem): string {
+  const params = new URLSearchParams({
+    examId,
+    type: item.activity,
+    minutes: String(item.durationMinutes),
+    planItemId: item.id,
+  });
+  if (item.topic) params.set('topicId', item.topic.id);
+  return `/timer?${params.toString()}`;
+}
+
 /** 480 -> "08:00" */
 export function minuteToClock(minuteOfDay: number): string {
   const h = Math.floor(minuteOfDay / 60) % 24;
