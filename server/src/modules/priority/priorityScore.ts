@@ -220,6 +220,13 @@ export function scoreTopic(input: PriorityInput): PriorityBreakdown {
     .slice(0, 2)
     .map(([key]) => {
       if (key === 'coverageGap' && input.status === 'LEARNING') return 'part-way through';
+      // daysOverdue of 0 means scheduled for today, which is not yet overdue.
+      if (key === 'revisionDebt' && input.daysOverdue !== null) {
+        if (input.daysOverdue === 0) return 'revision due today';
+        return input.daysOverdue === 1
+          ? 'revision 1 day overdue'
+          : `revision ${input.daysOverdue} days overdue`;
+      }
       if (key === 'weakness' && input.difficulty !== 'DIFFICULT') {
         // Measured mock accuracy is the stronger claim, so it wins the label.
         return poorInMocks ? 'low mock accuracy' : 'taking longer than estimated';

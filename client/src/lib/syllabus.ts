@@ -251,6 +251,17 @@ export const STATUS_CLASSES: Record<TopicStatus, string> = {
   WELL_REVISED: 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-200',
 };
 
+/**
+ * Short labels for dense lists. "Not started yet" repeated down twenty rows
+ * reads as an unfinished interface; a one-word chip reads as a state.
+ */
+export const STATUS_SHORT: Record<TopicStatus, string> = {
+  NOT_STARTED: 'New',
+  LEARNING: 'In progress',
+  COMPLETED_REVISION_DUE: 'Review',
+  WELL_REVISED: 'Done',
+};
+
 export const DIFFICULTY_LABELS: Record<Difficulty, string> = {
   EASY: 'Easy',
   MODERATE: 'Moderate',

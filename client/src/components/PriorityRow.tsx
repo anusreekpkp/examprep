@@ -3,9 +3,12 @@ import {
   COMPONENT_COLORS,
   COMPONENT_LABELS,
   COMPONENT_ORDER,
+  priorityBand,
+  studyHref,
   type RankedTopic,
 } from '@/lib/priorities';
-import { STATUS_CLASSES, STATUS_LABELS, formatMinutes } from '@/lib/syllabus';
+import { STATUS_CLASSES, STATUS_SHORT, formatMinutes } from '@/lib/syllabus';
+import { Button } from '@/components/ui';
 
 /**
  * Shows *why* a topic was ranked where it was. The stacked bar is the whole
@@ -14,6 +17,7 @@ import { STATUS_CLASSES, STATUS_LABELS, formatMinutes } from '@/lib/syllabus';
  */
 export function PriorityRow({ entry, rank }: { entry: RankedTopic; rank: number }) {
   const { topic, components, recencyPenalty, score, reasons } = entry;
+  const band = priorityBand(score);
 
   return (
     <li className="rounded-lg border border-slate-200 bg-white p-4 dark:border-slate-800 dark:bg-slate-900">
@@ -37,27 +41,27 @@ export function PriorityRow({ entry, rank }: { entry: RankedTopic; rank: number 
                   <span className="text-slate-700 dark:text-slate-200">{reason}</span>
                 </span>
               ))}
-              {topic.daysOverdue !== null && topic.daysOverdue > 0 && (
-                <span className="ml-2 text-red-600 dark:text-red-400">
-                  ({topic.daysOverdue}d late)
-                </span>
-              )}
             </p>
           </div>
         </div>
 
         <div className="flex shrink-0 items-center gap-3">
+          <span className="text-right">
+            <span
+              className={`block rounded px-1.5 py-0.5 text-xs font-medium ${band.className}`}
+            >
+              {band.label}
+            </span>
+            <span className="mt-0.5 block text-xs text-slate-400">score {score}/100</span>
+          </span>
           <span
             className={`rounded-full px-2 py-0.5 text-xs font-medium ${STATUS_CLASSES[topic.status]}`}
           >
-            {STATUS_LABELS[topic.status]}
+            {STATUS_SHORT[topic.status]}
           </span>
-          <span className="text-right">
-            <span className="block text-lg font-semibold tabular-nums text-brand-600">
-              {score}
-            </span>
-            <span className="block text-xs text-slate-400">score</span>
-          </span>
+          <Link to={studyHref(topic)}>
+            <Button>{topic.daysOverdue !== null ? 'Revise' : 'Start'}</Button>
+          </Link>
         </div>
       </div>
 

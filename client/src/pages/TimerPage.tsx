@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import { AppShell } from '@/components/AppShell';
 import { Alert, Button, Card, Field, Input } from '@/components/ui';
 import { extractErrorMessage } from '@/lib/api';
@@ -29,14 +29,28 @@ export default function TimerPage() {
   const finish = useFinishSession();
   const discard = useDiscardSession();
 
+  /**
+   * The priority list and the dashboard link straight into a session with
+   * ?topicId=…&examId=…, so "Start" is one click rather than a hunt through a
+   * dropdown. examId rides along because the topic dropdown is built from one
+   * exam's tree - without it a deep link to a topic in a non-nearest exam would
+   * select an id the dropdown cannot show.
+   */
+  const [searchParams] = useSearchParams();
+  const linkedTopicId = searchParams.get('topicId') ?? '';
+  const linkedExamId = searchParams.get('examId') ?? undefined;
+  const linkedType = searchParams.get('type');
+
   const nextExam = exams
     ?.filter((exam) => exam.daysRemaining >= 0)
     .sort((a, b) => a.daysRemaining - b.daysRemaining)[0];
-  const { data: tree } = useExamTree(nextExam?.id);
+  const { data: tree } = useExamTree(linkedExamId ?? nextExam?.id);
   const { data: history } = useSessionHistory();
 
-  const [topicId, setTopicId] = useState('');
-  const [sessionType, setSessionType] = useState<SessionType>('NEW_TOPIC');
+  const [topicId, setTopicId] = useState(linkedTopicId);
+  const [sessionType, setSessionType] = useState<SessionType>(
+    linkedType === 'REVISION' ? 'REVISION' : 'NEW_TOPIC',
+  );
   const [plannedMinutes, setPlannedMinutes] = useState(50);
   const [error, setError] = useState<string | null>(null);
   const [summary, setSummary] = useState<string | null>(null);
@@ -79,6 +93,10 @@ export default function TimerPage() {
         ];
       }),
     ) ?? [];
+
+  const linkedTopicLabel = linkedTopicId
+    ? allTopics.find((topic) => topic.id === linkedTopicId)?.label
+    : undefined;
 
   const handleStart = async () => {
     setError(null);
@@ -293,6 +311,13 @@ export default function TimerPage() {
       {!active && !isPending && (
         <Card>
           <h2 className="font-medium">Start a session</h2>
+
+          {linkedTopicLabel && (
+            <p className="mt-1 text-sm text-slate-500">
+              Ready to work on <strong className="text-slate-700 dark:text-slate-200">{linkedTopicLabel}</strong>
+              . Pick a length and go.
+            </p>
+          )}
 
           {allTopics.length === 0 ? (
             <p className="mt-2 text-sm text-slate-500">
