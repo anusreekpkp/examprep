@@ -191,7 +191,11 @@ export default function DashboardPage() {
                     <Link
                       to={`/exams/${exam.id}`}
                       className="min-w-0 flex-1 truncate hover:text-brand-600"
-                      title={`${subject.name} · ${subject.weightage}% of the paper`}
+                      title={
+                        subject.weightage === null
+                          ? `${subject.name} · no published weightage`
+                          : `${subject.name} · ${subject.weightage}% of the paper`
+                      }
                     >
                       {subject.name}
                     </Link>
@@ -212,9 +216,11 @@ export default function DashboardPage() {
                     <span className="w-9 shrink-0 text-right text-xs tabular-nums text-slate-500">
                       {subject.completionPercent}%
                     </span>
-                    <span className="hidden w-16 shrink-0 text-right text-xs text-slate-400 sm:block">
-                      {subject.weightage}% wt
-                    </span>
+                    {subject.weightage !== null && (
+                      <span className="hidden w-16 shrink-0 text-right text-xs text-slate-400 sm:block">
+                        {subject.weightage}% wt
+                      </span>
+                    )}
                   </li>
                 ))}
               </ul>
@@ -412,7 +418,7 @@ function Row({ label, value }: { label: string; value: string }) {
 function PriorityItem({ entry, rank }: { entry: RankedTopic; rank: number }) {
   const { topic, reasons, score } = entry;
   const isRevision = topic.daysOverdue !== null;
-  const band = priorityBand(score);
+  const band = priorityBand(score, entry.maxScore);
 
   return (
     <li className="flex flex-wrap items-center gap-x-4 gap-y-3 p-4">
@@ -445,7 +451,7 @@ function PriorityItem({ entry, rank }: { entry: RankedTopic; rank: number }) {
         </p>
         <p className="mt-0.5 text-xs text-slate-400">
           {topic.subjectName} · about {formatMinutes(topic.estimatedMinutes)} · score{' '}
-          {Math.round(score)}/100
+          {Math.round(score)}/{entry.maxScore}
         </p>
       </div>
 

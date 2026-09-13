@@ -37,6 +37,8 @@ interface PlannedItem {
   durationMinutes: number;
   priorityScore: number | null;
   label: string;
+  /** The engine's own words for why this slot exists, stored with the plan. */
+  reason: string | null;
 }
 
 const planSelect = {
@@ -55,6 +57,7 @@ const planSelect = {
       durationMinutes: true,
       status: true,
       priorityScore: true,
+      reason: true,
       topic: {
         select: {
           id: true,
@@ -77,8 +80,20 @@ const planSelect = {
  * into tomorrow would quietly undo the spacing that makes revision work.
  */
 function buildSchedule(
-  dueRevisions: { topicId: string; topicName: string; estimatedMinutes: number }[],
-  priorities: { topicId: string; name: string; estimatedMinutes: number; score: number; status: string }[],
+  dueRevisions: {
+    topicId: string;
+    topicName: string;
+    estimatedMinutes: number;
+    daysOverdue: number;
+  }[],
+  priorities: {
+    topicId: string;
+    name: string;
+    estimatedMinutes: number;
+    score: number;
+    status: string;
+    reasons: string[];
+  }[],
   availableMinutes: number,
 ): PlannedItem[] {
   const items: PlannedItem[] = [];
@@ -96,6 +111,7 @@ function buildSchedule(
       durationMinutes: BREAK_MINUTES,
       priorityScore: null,
       label: 'Break',
+      reason: null,
     });
     used += BREAK_MINUTES;
     sinceBreak = 0;
@@ -114,6 +130,12 @@ function buildSchedule(
       durationMinutes: duration,
       priorityScore: null,
       label: revision.topicName,
+      // Revisions are scheduled by the spaced-repetition ladder, not the
+      // priority score, so they carry their own explanation.
+      reason:
+        revision.daysOverdue > 0
+          ? `revision ${revision.daysOverdue} ${revision.daysOverdue === 1 ? 'day' : 'days'} overdue`
+          : 'revision due today',
     });
     used += duration;
     sinceBreak += duration;
@@ -133,6 +155,7 @@ function buildSchedule(
       durationMinutes: duration,
       priorityScore: topic.score,
       label: topic.name,
+      reason: topic.reasons.join(' · '),
     });
     scheduled.add(topic.topicId);
     used += duration;
@@ -165,6 +188,8 @@ export async function generatePlan(userId: string, examId: string, input: Genera
       topicId: revision.topic.id,
       topicName: revision.topic.name,
       estimatedMinutes: revision.topic.estimatedMinutes,
+      // dueInDays counts down, so a negative value is days already overdue.
+      daysOverdue: Math.max(0, -revision.dueInDays),
     })),
     ranked.topics.map((entry) => ({
       topicId: entry.topic.id,
@@ -172,6 +197,7 @@ export async function generatePlan(userId: string, examId: string, input: Genera
       estimatedMinutes: entry.topic.estimatedMinutes,
       score: entry.score,
       status: entry.topic.status,
+      reasons: entry.reasons,
     })),
     availableMinutes,
   );
@@ -206,6 +232,7 @@ export async function generatePlan(userId: string, examId: string, input: Genera
               startMinuteOfDay,
               durationMinutes: item.durationMinutes,
               priorityScore: item.priorityScore,
+              reason: item.reason,
             };
           }),
         },
@@ -214,7 +241,7 @@ export async function generatePlan(userId: string, examId: string, input: Genera
     });
   });
 
-  return { plan, timeZone };
+  return { plan, timeZone, hasWeightageData: ranked.hasWeightageData };
 }
 
 export async function getPlan(userId: string, examId: string, dateKey?: string) {
@@ -232,7 +259,16 @@ export async function getPlan(userId: string, examId: string, dateKey?: string) 
     select: planSelect,
   });
 
-  return { plan, date: key, timeZone };
+  // Lets the page state plainly which evidence the plan could draw on, rather
+  // than leaving the student to assume exam weightage was taken into account.
+  // Matches the priority engine's all-or-nothing rule: one unset subject means
+  // the split is not known.
+  const [subjectCount, unset] = await Promise.all([
+    prisma.subject.count({ where: { examId } }),
+    prisma.subject.count({ where: { examId, weightage: null } }),
+  ]);
+
+  return { plan, date: key, timeZone, hasWeightageData: subjectCount > 0 && unset === 0 };
 }
 
 export async function updatePlanItem(

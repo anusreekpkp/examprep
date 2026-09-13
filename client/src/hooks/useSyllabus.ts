@@ -81,8 +81,13 @@ export function useCreateSubject(examId: string) {
 
 export function useUpdateSubject(examId: string) {
   return useSyllabusMutation(
-    (args: { subjectId: string; name?: string; weightage?: number }) =>
-      syllabus.updateSubject(args.subjectId, { name: args.name, weightage: args.weightage }),
+    // weightage is nullable, not merely optional: null clears a figure the
+    // student no longer stands behind, undefined leaves it untouched.
+    (args: { subjectId: string; name?: string; weightage?: number | null }) =>
+      syllabus.updateSubject(args.subjectId, {
+        ...(args.name === undefined ? {} : { name: args.name }),
+        ...(args.weightage === undefined ? {} : { weightage: args.weightage }),
+      }),
     examId,
   );
 }

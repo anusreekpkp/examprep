@@ -22,7 +22,8 @@ export interface SubjectNode {
   id: string;
   name: string;
   orderIndex: number;
-  weightage: number;
+  /** Null when the exam publishes no weightage - never invented. */
+  weightage: number | null;
   colorHex: string | null;
   topicCount: number;
   completionPercent: number;
@@ -70,7 +71,8 @@ export interface ExamTree {
 export interface SubjectProgress {
   id: string;
   name: string;
-  weightage: number;
+  /** Null when the exam publishes no weightage - never invented. */
+  weightage: number | null;
   totalTopics: number;
   notStarted: number;
   learning: number;
@@ -185,7 +187,7 @@ export async function createSubject(
 
 export async function updateSubject(
   subjectId: string,
-  payload: Partial<{ name: string; weightage: number }>,
+  payload: Partial<{ name: string; weightage: number | null }>,
 ): Promise<void> {
   await api.patch(`/api/subjects/${subjectId}`, payload);
 }

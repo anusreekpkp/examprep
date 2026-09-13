@@ -17,7 +17,7 @@ import { Button } from '@/components/ui';
  */
 export function PriorityRow({ entry, rank }: { entry: RankedTopic; rank: number }) {
   const { topic, components, recencyPenalty, score, reasons } = entry;
-  const band = priorityBand(score);
+  const band = priorityBand(score, entry.maxScore);
 
   return (
     <li className="rounded-lg border border-slate-200 bg-white p-4 dark:border-slate-800 dark:bg-slate-900">
@@ -52,7 +52,9 @@ export function PriorityRow({ entry, rank }: { entry: RankedTopic; rank: number 
             >
               {band.label}
             </span>
-            <span className="mt-0.5 block text-xs text-slate-400">score {score}/100</span>
+            <span className="mt-0.5 block text-xs text-slate-400">
+              score {score}/{entry.maxScore}
+            </span>
           </span>
           <span
             className={`rounded-full px-2 py-0.5 text-xs font-medium ${STATUS_CLASSES[topic.status]}`}

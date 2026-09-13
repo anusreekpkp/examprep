@@ -216,6 +216,12 @@ export default function SyllabusPage() {
                 'Could not rename the subject',
               );
             }}
+            onWeightageChange={async (subjectId, weightage) => {
+              await run(
+                () => updateSubject.mutateAsync({ subjectId, weightage }),
+                'Could not save the weightage',
+              );
+            }}
             onDeleteSubject={handleDeleteSubject}
             onAddTopic={async (subjectId, name, parentTopicId) => {
               await run(

@@ -25,7 +25,8 @@ export interface Dashboard {
     subjects: {
       id: string;
       name: string;
-      weightage: number;
+      /** Null when the exam publishes no weightage - never invented. */
+      weightage: number | null;
       topicCount: number;
       completionPercent: number;
     }[];

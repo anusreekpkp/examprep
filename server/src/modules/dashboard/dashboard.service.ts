@@ -168,10 +168,13 @@ export async function getDashboard(userId: string) {
           topicCount: allStatuses.length,
           completionPercent: completionPercent(allStatuses),
           /**
-           * Per-subject coverage, heaviest subject first. The dashboard needs it
-           * to answer the question behind "am I on track?" - one overall
-           * percentage hides a paper that is 80% done in the easy subject and
-           * untouched in the one worth a quarter of the marks.
+           * Per-subject coverage. One overall percentage hides a paper that is
+           * 80% done in the easy subject and untouched in the heavy one.
+           *
+           * Ordered by weightage when the exam publishes it, and otherwise by
+           * how far behind each subject is - with nothing to weight by, the
+           * subject the student has covered least is the useful thing to lead
+           * with, and syllabus order would just be alphabetical noise.
            */
           subjects: exam.subjects
             .filter((subject) => subject.topics.length > 0)
@@ -182,7 +185,11 @@ export async function getDashboard(userId: string) {
               topicCount: subject.topics.length,
               completionPercent: completionPercent(subject.topics.map((topic) => topic.status)),
             }))
-            .sort((a, b) => b.weightage - a.weightage),
+            .sort((a, b) =>
+              a.weightage !== null && b.weightage !== null
+                ? b.weightage - a.weightage
+                : a.completionPercent - b.completionPercent,
+            ),
         }
       : null,
     todayStats: {

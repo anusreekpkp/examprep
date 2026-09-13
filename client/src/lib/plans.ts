@@ -12,6 +12,8 @@ export interface PlanItem {
   durationMinutes: number;
   status: PlanItemStatus;
   priorityScore: number | null;
+  /** Why the engine put this slot here, frozen when the plan was generated. */
+  reason: string | null;
   topic: {
     id: string;
     name: string;
@@ -75,15 +77,40 @@ export function minuteToClock(minuteOfDay: number): string {
   return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
 }
 
-export async function fetchPlan(
-  examId: string,
-  date?: string,
-): Promise<{ plan: StudyPlan | null; date: string; timeZone: string }> {
-  const { data } = await api.get<Envelope<{ plan: StudyPlan | null; date: string; timeZone: string }>>(
-    `/api/exams/${examId}/plan`,
-    { params: date ? { date } : undefined },
-  );
+export interface PlanResponse {
+  plan: StudyPlan | null;
+  date: string;
+  timeZone: string;
+  /** False when the exam publishes no subject weightage the student supplied. */
+  hasWeightageData: boolean;
+}
+
+export async function fetchPlan(examId: string, date?: string): Promise<PlanResponse> {
+  const { data } = await api.get<Envelope<PlanResponse>>(`/api/exams/${examId}/plan`, {
+    params: date ? { date } : undefined,
+  });
   return data.data;
+}
+
+/**
+ * Minutes per activity, for the summary a student reads before committing to
+ * the day. Breaks are counted separately because they are not study time.
+ */
+export function planBreakdown(plan: StudyPlan) {
+  const totals = new Map<PlanActivity, number>();
+  for (const item of plan.items) {
+    totals.set(item.activity, (totals.get(item.activity) ?? 0) + item.durationMinutes);
+  }
+  const studyMinutes = plan.items
+    .filter((item) => item.activity !== 'BREAK')
+    .reduce((sum, item) => sum + item.durationMinutes, 0);
+
+  return {
+    totals: [...totals.entries()].sort((a, b) => b[1] - a[1]),
+    studyMinutes,
+    breakMinutes: totals.get('BREAK') ?? 0,
+    totalMinutes: studyMinutes + (totals.get('BREAK') ?? 0),
+  };
 }
 
 export async function generatePlan(

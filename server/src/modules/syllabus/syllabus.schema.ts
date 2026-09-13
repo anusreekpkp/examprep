@@ -36,7 +36,9 @@ export const createSubjectSchema = z.object({
 export const updateSubjectSchema = z
   .object({
     name: z.string().trim().min(1).max(120).optional(),
-    weightage: z.number().int().min(0).max(100).optional(),
+    // Nullable so a student can clear a figure they are no longer sure of, and
+    // the engine goes back to saying it does not know.
+    weightage: z.number().int().min(0).max(100).nullable().optional(),
     colorHex: z
       .string()
       .regex(/^#[0-9a-fA-F]{6}$/, 'Colour must be a hex value like #4f46e5')

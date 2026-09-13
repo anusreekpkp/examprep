@@ -11,6 +11,8 @@ export type ComponentKey =
 
 export interface RankedTopic {
   score: number;
+  /** Highest score this topic could have reached given the available signals. */
+  maxScore: number;
   components: Record<ComponentKey, number>;
   recencyPenalty: number;
   reasons: string[];
@@ -36,6 +38,10 @@ export interface PriorityResponse {
   today: string;
   timeZone: string;
   count: number;
+  /** False when no subject in scope carries a weightage the student supplied. */
+  hasWeightageData: boolean;
+  /** 100 normally; 82 when exam weight is unavailable and scores zero. */
+  maxScore: number;
   topics: RankedTopic[];
   weights: {
     components: Record<ComponentKey, number>;
@@ -81,17 +87,22 @@ export const COMPONENT_COLORS: Record<ComponentKey, string> = {
  * student cannot do anything with "35.7" - so the band leads and the figure
  * stays as a secondary detail for anyone who wants to check the maths.
  */
-export function priorityBand(score: number): { label: string; className: string } {
-  // Thresholds sit where real scores fall, not at a tidy 33/66. No single topic
-  // can max every component - an overdue, difficult, heavily-weighted topic
-  // lands in the mid-60s - so a 55 cut-off would call almost everything medium.
-  if (score >= 45) {
+export function priorityBand(
+  score: number,
+  maxScore = 100,
+): { label: string; className: string } {
+  // Thresholds sit where real scores fall, not at a tidy 33/66: no single topic
+  // can max every component, so a 55-of-100 cut-off would call almost
+  // everything medium. They are applied as a share of what was *reachable*,
+  // because the ceiling drops when a signal like exam weightage is missing.
+  const share = maxScore > 0 ? (score / maxScore) * 100 : 0;
+  if (share >= 45) {
     return {
       label: 'High priority',
       className: 'bg-red-100 text-red-700 dark:bg-red-950/60 dark:text-red-300',
     };
   }
-  if (score >= 25) {
+  if (share >= 25) {
     return {
       label: 'Medium priority',
       className: 'bg-amber-100 text-amber-800 dark:bg-amber-950/60 dark:text-amber-300',

@@ -41,8 +41,13 @@ export interface PriorityInput {
   difficulty: Difficulty;
   isStarred: boolean;
   isFrequentlyAsked: boolean;
-  /** Subject's share of the paper, 0-100. */
-  subjectWeightage: number;
+  /**
+   * Subject's share of the paper, 0-100, or null when the exam does not publish
+   * one. A syllabus lists what is examinable, not how the marks are split, so
+   * for most uploaded syllabi this is null and exam weight scores zero - the
+   * engine says "I don't know" rather than scoring against an invented figure.
+   */
+  subjectWeightage: number | null;
   estimatedMinutes: number;
   totalStudyMinutes: number;
   lastStudiedAt: Date | null;
@@ -64,6 +69,12 @@ export interface PriorityBreakdown {
   components: Record<ComponentKey, number>;
   recencyPenalty: number;
   reasons: string[];
+  /**
+   * The highest score this topic could have reached. It is 100 only when every
+   * signal is available; without published weightage the ceiling drops to 82,
+   * and reporting a score out of 100 would understate every topic equally.
+   */
+  maxScore: number;
 }
 
 const clamp = (value: number, min: number, max: number) => Math.min(max, Math.max(min, value));
@@ -176,8 +187,12 @@ const REASON_TEXT: Record<ComponentKey, string> = {
 };
 
 export function scoreTopic(input: PriorityInput): PriorityBreakdown {
+  const hasWeightage = input.subjectWeightage !== null;
+
   const components: Record<ComponentKey, number> = {
-    examWeight: round1((clamp(input.subjectWeightage, 0, 100) / 100) * COMPONENT_MAX.examWeight),
+    examWeight: hasWeightage
+      ? round1((clamp(input.subjectWeightage ?? 0, 0, 100) / 100) * COMPONENT_MAX.examWeight)
+      : 0,
     coverageGap: round1(coverageGap(input.status)),
     weakness: round1(weakness(input)),
     revisionDebt: round1(revisionDebt(input.daysOverdue)),
@@ -190,7 +205,8 @@ export function scoreTopic(input: PriorityInput): PriorityBreakdown {
 
   const penalty = round1(recencyPenalty(input.daysSinceStudied, input.daysOverdue !== null));
   const total = Object.values(components).reduce((sum, value) => sum + value, 0);
-  const score = round1(clamp(total - penalty, 0, 100));
+  const maxScore = hasWeightage ? 100 : 100 - COMPONENT_MAX.examWeight;
+  const score = round1(clamp(total - penalty, 0, maxScore));
 
   const overrun = overrunRatio(input);
   // Weakness is only offered as a *reason* when there is real evidence for it.
@@ -209,7 +225,7 @@ export function scoreTopic(input: PriorityInput): PriorityBreakdown {
       // Every subject contributes *some* exam weight, so only call it out when
       // the subject genuinely carries a large share of the paper. Describing a
       // 15%-weight subject as "high-scoring" is just false.
-      if (key === 'examWeight') return input.subjectWeightage >= 35;
+      if (key === 'examWeight') return (input.subjectWeightage ?? 0) >= 35;
       // A topic awaiting revision still carries coverage points, but calling it
       // "not started" would be plainly untrue - the revision debt says it
       // better anyway.
@@ -236,5 +252,5 @@ export function scoreTopic(input: PriorityInput): PriorityBreakdown {
 
   if (reasons.length === 0) reasons.push('nothing outstanding');
 
-  return { score, components, recencyPenalty: penalty, reasons };
+  return { score, components, recencyPenalty: penalty, reasons, maxScore };
 }
