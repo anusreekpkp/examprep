@@ -90,8 +90,7 @@ export async function updateTopicStatus(
 export interface SubjectProgress {
   id: string;
   name: string;
-  /** Null when the exam publishes no weightage - see Subject.weightage. */
-  weightage: number | null;
+  weightage: number;
   totalTopics: number;
   notStarted: number;
   learning: number;
@@ -170,22 +169,14 @@ export async function getExamProgress(userId: string, examId: string) {
    *  - weightedReadiness: the same, weighted by how much each subject is worth
    *    in the paper. A student can be 70% through the syllabus while weak on the
    *    subject carrying half the marks, and only this number shows it.
-   *
-   * It is null when no subject carries a supplied weightage: with nothing to
-   * weight by, the "weighted" figure would just be the plain percentage wearing
-   * a more authoritative label.
    */
-  const weighted = subjects.filter(
-    (s): s is SubjectProgress & { weightage: number } => s.weightage !== null,
-  );
-  const weightTotal = weighted.reduce((sum, s) => sum + s.weightage, 0);
+  const weightTotal = subjects.reduce((sum, s) => sum + s.weightage, 0);
   const weightedReadiness =
     weightTotal === 0
-      ? null
+      ? overall.completionPercent
       : Math.round(
-          weighted.reduce((sum, s) => sum + s.completionPercent * s.weightage, 0) / weightTotal,
+          subjects.reduce((sum, s) => sum + s.completionPercent * s.weightage, 0) / weightTotal,
         );
-  const hasWeightageData = weighted.length > 0;
 
   const minutesNeededPerDay =
     daysRemaining > 0 ? Math.ceil(overall.estimatedMinutesRemaining / daysRemaining) : null;
@@ -198,7 +189,6 @@ export async function getExamProgress(userId: string, examId: string) {
       daysRemaining,
       dailyAvailableMinutes: exam.dailyAvailableMinutes,
     },
-    hasWeightageData,
     overall: {
       ...overall,
       weightedReadiness,

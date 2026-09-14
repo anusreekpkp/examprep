@@ -22,8 +22,7 @@ export interface SubjectNode {
   id: string;
   name: string;
   orderIndex: number;
-  /** Null when the exam publishes no weightage - never invented. */
-  weightage: number | null;
+  weightage: number;
   colorHex: string | null;
   topicCount: number;
   completionPercent: number;
@@ -71,8 +70,7 @@ export interface ExamTree {
 export interface SubjectProgress {
   id: string;
   name: string;
-  /** Null when the exam publishes no weightage - never invented. */
-  weightage: number | null;
+  weightage: number;
   totalTopics: number;
   notStarted: number;
   learning: number;
@@ -187,7 +185,7 @@ export async function createSubject(
 
 export async function updateSubject(
   subjectId: string,
-  payload: Partial<{ name: string; weightage: number | null }>,
+  payload: Partial<{ name: string; weightage: number }>,
 ): Promise<void> {
   await api.patch(`/api/subjects/${subjectId}`, payload);
 }
@@ -251,17 +249,6 @@ export const STATUS_CLASSES: Record<TopicStatus, string> = {
   LEARNING: 'bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-200',
   COMPLETED_REVISION_DUE: 'bg-orange-100 text-orange-800 dark:bg-orange-950 dark:text-orange-200',
   WELL_REVISED: 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-200',
-};
-
-/**
- * Short labels for dense lists. "Not started yet" repeated down twenty rows
- * reads as an unfinished interface; a one-word chip reads as a state.
- */
-export const STATUS_SHORT: Record<TopicStatus, string> = {
-  NOT_STARTED: 'New',
-  LEARNING: 'In progress',
-  COMPLETED_REVISION_DUE: 'Review',
-  WELL_REVISED: 'Done',
 };
 
 export const DIFFICULTY_LABELS: Record<Difficulty, string> = {

@@ -176,11 +176,8 @@ model Subject {
   examId     String
   name       String
   orderIndex Int      @default(0)
-  /// Share of the paper this subject carries, when the exam actually publishes
-  /// one. Null means nobody supplied it - a syllabus PDF says what is on the
-  /// paper, not how the marks are split - and the priority engine must then
-  /// leave exam weight out rather than score against a made-up number.
-  weightage  Int?
+  /// Share of the paper this subject carries, used by the priority engine.
+  weightage  Int      @default(25)
   colorHex   String?
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
@@ -411,10 +408,6 @@ model StudyPlanItem {
   status           PlanItemStatus   @default(PENDING)
   /// Score from the priority engine at generation time, for explainability.
   priorityScore    Float?
-  /// Why this slot was chosen, in the engine's own words, frozen at generation
-  /// time. Recomputing it later would explain today's plan with tomorrow's
-  /// evidence, which is how a planner ends up looking arbitrary.
-  reason           String?
 
   studyPlan StudyPlan @relation(fields: [studyPlanId], references: [id], onDelete: Cascade)
   topic     Topic?    @relation(fields: [topicId], references: [id], onDelete: SetNull)

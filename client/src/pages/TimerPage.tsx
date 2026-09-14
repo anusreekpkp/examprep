@@ -1,7 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Link, useSearchParams } from 'react-router-dom';
-import { useQueryClient } from '@tanstack/react-query';
-import { updatePlanItem } from '@/lib/plans';
+import { Link } from 'react-router-dom';
 import { AppShell } from '@/components/AppShell';
 import { Alert, Button, Card, Field, Input } from '@/components/ui';
 import { extractErrorMessage } from '@/lib/api';
@@ -25,43 +23,21 @@ import { useExamTree, useExams } from '@/hooks/useSyllabus';
 const PRESETS = [25, 50, 90];
 
 export default function TimerPage() {
-  const queryClient = useQueryClient();
   const { data: active, isPending } = useActiveSession();
   const { data: exams } = useExams();
   const start = useStartSession();
   const finish = useFinishSession();
   const discard = useDiscardSession();
 
-  /**
-   * The priority list and the dashboard link straight into a session with
-   * ?topicId=…&examId=…, so "Start" is one click rather than a hunt through a
-   * dropdown. examId rides along because the topic dropdown is built from one
-   * exam's tree - without it a deep link to a topic in a non-nearest exam would
-   * select an id the dropdown cannot show.
-   */
-  const [searchParams] = useSearchParams();
-  const linkedTopicId = searchParams.get('topicId') ?? '';
-  const linkedExamId = searchParams.get('examId') ?? undefined;
-  const linkedType = searchParams.get('type');
-  const linkedMinutes = Number(searchParams.get('minutes'));
-  /** Set when arriving from today's plan: finishing the topic ticks that slot off. */
-  const linkedPlanItemId = searchParams.get('planItemId');
-
   const nextExam = exams
     ?.filter((exam) => exam.daysRemaining >= 0)
     .sort((a, b) => a.daysRemaining - b.daysRemaining)[0];
-  const { data: tree } = useExamTree(linkedExamId ?? nextExam?.id);
+  const { data: tree } = useExamTree(nextExam?.id);
   const { data: history } = useSessionHistory();
 
-  const [topicId, setTopicId] = useState(linkedTopicId);
-  const [sessionType, setSessionType] = useState<SessionType>(
-    linkedType && linkedType in SESSION_TYPE_LABELS ? (linkedType as SessionType) : 'NEW_TOPIC',
-  );
-  const [plannedMinutes, setPlannedMinutes] = useState(
-    Number.isFinite(linkedMinutes) && linkedMinutes >= 1 && linkedMinutes <= 240
-      ? linkedMinutes
-      : 50,
-  );
+  const [topicId, setTopicId] = useState('');
+  const [sessionType, setSessionType] = useState<SessionType>('NEW_TOPIC');
+  const [plannedMinutes, setPlannedMinutes] = useState(50);
   const [error, setError] = useState<string | null>(null);
   const [summary, setSummary] = useState<string | null>(null);
 
@@ -103,10 +79,6 @@ export default function TimerPage() {
         ];
       }),
     ) ?? [];
-
-  const linkedTopicLabel = linkedTopicId
-    ? allTopics.find((topic) => topic.id === linkedTopicId)?.label
-    : undefined;
 
   const handleStart = async () => {
     setError(null);
@@ -166,21 +138,6 @@ export default function TimerPage() {
       } else if (result.topicStatus === 'LEARNING') {
         parts.push('marked as learning');
       }
-
-      // Only a finished topic ticks the plan slot off: a partial session is
-      // real progress but the slot's work is not done, and silently marking it
-      // complete would make the plan lie about the day.
-      if (linkedPlanItemId && completion === 'YES') {
-        try {
-          await updatePlanItem(linkedPlanItemId, 'COMPLETED');
-          await queryClient.invalidateQueries({ queryKey: ['plan'] });
-          parts.push('ticked off today’s plan');
-        } catch {
-          // The session itself is already saved; the student can tick the plan
-          // item by hand, so this is not worth an error banner.
-        }
-      }
-
       setSummary(`${parts.join(' · ')}.`);
       setIsFinishing(false);
     } catch (err) {
@@ -336,24 +293,6 @@ export default function TimerPage() {
       {!active && !isPending && (
         <Card>
           <h2 className="font-medium">Start a session</h2>
-
-          {linkedTopicLabel && (
-            <p className="mt-1 text-sm text-slate-500">
-              Ready to work on{' '}
-              <strong className="text-slate-700 dark:text-slate-200">{linkedTopicLabel}</strong>
-              {linkedPlanItemId ? (
-                <>
-                  , from{' '}
-                  <Link to="/plan" className="text-brand-600 hover:underline">
-                    today&rsquo;s plan
-                  </Link>
-                  . Finishing the topic ticks that slot off.
-                </>
-              ) : (
-                '. Pick a length and go.'
-              )}
-            </p>
-          )}
 
           {allTopics.length === 0 ? (
             <p className="mt-2 text-sm text-slate-500">

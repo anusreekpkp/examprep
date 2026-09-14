@@ -9,7 +9,6 @@ interface SubjectCardProps {
   isFirst: boolean;
   isLast: boolean;
   onRenameSubject: (subjectId: string, name: string) => Promise<void>;
-  onWeightageChange: (subjectId: string, weightage: number | null) => Promise<void>;
   onDeleteSubject: (subject: SubjectNode) => void;
   onMove: (subjectId: string, direction: -1 | 1) => void;
   onAddTopic: (subjectId: string, name: string, parentTopicId?: string | null) => Promise<void>;
@@ -27,7 +26,6 @@ export function SubjectCard({
   isFirst,
   isLast,
   onRenameSubject,
-  onWeightageChange,
   onDeleteSubject,
   onMove,
   onAddTopic,
@@ -42,10 +40,7 @@ export function SubjectCard({
   // Collapsed by default would hide a 13-topic subject behind a click; expanded
   // by default matches how a student scans a syllabus.
   const [isOpen, setIsOpen] = useState(true);
-  const [mode, setMode] = useState<'view' | 'rename' | 'addTopic' | 'weight'>('view');
-  const [weightDraft, setWeightDraft] = useState(
-    subject.weightage === null ? '' : String(subject.weightage),
-  );
+  const [mode, setMode] = useState<'view' | 'rename' | 'addTopic'>('view');
 
   return (
     <Card className="p-4">
@@ -78,59 +73,7 @@ export function SubjectCard({
             <span className="shrink-0 rounded-full bg-slate-100 px-2 py-0.5 text-xs text-slate-600 dark:bg-slate-800 dark:text-slate-300">
               {subject.topicCount} {subject.topicCount === 1 ? 'topic' : 'topics'}
             </span>
-            {/*
-              A figure only when the student supplied one. "Not set" is a real
-              state the priority engine reads, not a gap to be filled with a
-              default - so it is editable right here.
-            */}
-            {mode === 'weight' ? (
-              <form
-                className="flex shrink-0 items-center gap-1"
-                onSubmit={async (event) => {
-                  event.preventDefault();
-                  const trimmed = weightDraft.trim();
-                  const parsed = trimmed === '' ? null : Number(trimmed);
-                  if (parsed !== null && (!Number.isFinite(parsed) || parsed < 0 || parsed > 100)) {
-                    return;
-                  }
-                  await onWeightageChange(subject.id, parsed === null ? null : Math.round(parsed));
-                  setMode('view');
-                }}
-              >
-                <input
-                  autoFocus
-                  type="number"
-                  min={0}
-                  max={100}
-                  value={weightDraft}
-                  onChange={(event) => setWeightDraft(event.target.value)}
-                  aria-label={`Exam weightage for ${subject.name}, percent`}
-                  placeholder="—"
-                  className="w-16 rounded border border-slate-300 px-1.5 py-0.5 text-xs dark:border-slate-700 dark:bg-slate-950"
-                />
-                <span className="text-xs text-slate-400">%</span>
-                <TextAction onClick={() => undefined} type="submit">
-                  Save
-                </TextAction>
-                <TextAction
-                  onClick={() => {
-                    setWeightDraft(subject.weightage === null ? '' : String(subject.weightage));
-                    setMode('view');
-                  }}
-                >
-                  Cancel
-                </TextAction>
-              </form>
-            ) : (
-              <button
-                type="button"
-                onClick={() => setMode('weight')}
-                title="Exam weightage, if your exam publishes one. Leave blank if it does not."
-                className="shrink-0 rounded px-1.5 py-0.5 text-xs text-slate-400 transition hover:bg-slate-100 hover:text-slate-600 dark:hover:bg-slate-800"
-              >
-                {subject.weightage === null ? '+ weight' : `${subject.weightage}% weight`}
-              </button>
-            )}
+            <span className="shrink-0 text-xs text-slate-400">{subject.weightage}% weight</span>
 
             <span className="flex shrink-0 items-center gap-1">
               <IconAction
@@ -251,16 +194,14 @@ function TextAction({
   children,
   onClick,
   danger,
-  type = 'button',
 }: {
   children: React.ReactNode;
   onClick: () => void;
   danger?: boolean;
-  type?: 'button' | 'submit';
 }) {
   return (
     <button
-      type={type}
+      type="button"
       onClick={onClick}
       className={`rounded px-1.5 py-0.5 text-xs transition ${
         danger
